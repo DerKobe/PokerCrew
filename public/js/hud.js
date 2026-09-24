@@ -27,6 +27,9 @@ const ICON = {
   speaker: '<svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3Zm13.5 2A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4ZM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23Z"/></svg>',
   speakerOff:
     '<svg viewBox="0 0 24 24"><path d="M16.5 12A4.5 4.5 0 0 0 14 8v2.18l2.45 2.45c.03-.2.05-.41.05-.63Zm2.5 0a6.9 6.9 0 0 1-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12a9 9 0 0 0-7-8.77v2.06A7 7 0 0 1 19 12ZM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25A7 7 0 0 1 14 18.7v2.06a9 9 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3ZM12 4 9.91 6.09 12 8.18V4Z"/></svg>',
+  cam: '<svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4Z"/></svg>',
+  camOff:
+    '<svg viewBox="0 0 24 24"><path d="M21 6.5l-4 4V7a1 1 0 0 0-1-1H9.82L21 17.18V6.5ZM3.27 2 2 3.27 4.73 6H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2Z"/></svg>',
   pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
   play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
   bell: '<svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2Zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2Z"/></svg>',
@@ -99,6 +102,9 @@ export class Hud {
         <div class="act"></div>
         <button class="sit">Platz ${i + 1} · Hinsetzen</button>`;
       el.querySelector('.sit').addEventListener('click', () => this.#sitAt(i));
+      el.querySelector('.avatar').addEventListener('click', () => {
+        if (el.classList.contains('has-video')) el.classList.toggle('zoom');
+      });
       plates.appendChild(el);
       const bet = document.createElement('div');
       bet.className = 'betlabel';
@@ -159,12 +165,18 @@ export class Hud {
     $('#voice').innerHTML = `
       <div class="vhead">
         <button class="mic-btn" id="btn-mic"></button>
+        <button class="icon" id="btn-cam" title="Kamera an/aus"></button>
         <button class="icon" id="btn-deaf" title="Alle stummschalten (Lautsprecher)"></button>
         <div class="vtitle">Voice</div>
       </div>
       <ul class="vlist"></ul>`;
     $('#btn-mic').onclick = () => this.voice && this.voice.hasMic && this.voice.setMuted(!this.voice.muted);
     $('#btn-deaf').onclick = () => this.voice && this.voice.setDeafened(!this.voice.deafened);
+    $('#btn-cam').onclick = async () => {
+      if (!this.voice) return;
+      await this.voice.setVideo(!this.voice.videoOn);
+      if (!this.voice.videoOn && this.voice.camError) this.toast(this.voice.camError, 'error');
+    };
     window.addEventListener('keydown', (e) => {
       if (e.target.matches('input, textarea')) return;
       if (e.key === 'm' || e.key === 'M') this.voice?.hasMic && this.voice.setMuted(!this.voice.muted);
@@ -372,6 +384,7 @@ export class Hud {
     this.#renderActions(s, prev);
     this.#renderLog(s);
     this.#renderVoice();
+    this.#syncVideos();
     this.#renderResults(s);
     this.#renderBanner(s);
     this.#renderAway(s);
@@ -719,6 +732,11 @@ export class Hud {
     }
     deaf.innerHTML = v.deafened ? ICON.speakerOff : ICON.speaker;
     deaf.classList.toggle('off', v.deafened);
+    const cam = $('#btn-cam');
+    cam.innerHTML = v.videoOn ? ICON.cam : ICON.camOff;
+    cam.classList.toggle('off', !v.videoOn);
+    cam.classList.toggle('on', v.videoOn);
+    this.#syncVideos();
     const s = this.state;
     if (!s) return;
     const list = $('#voice .vlist');
@@ -728,9 +746,32 @@ export class Hud {
         const st = p.self ? 'connected' : v.peerState(p.id);
         return `<li data-id="${p.id}" ${p.self ? 'data-self="1"' : ''} class="${p.muted ? 'muted' : ''} st-${st}">
           <span class="dot"></span><span class="vn">${esc(name)}${p.self ? ' (du)' : ''}</span>
-          <span class="vm">${p.muted ? ICON.micOff : ICON.mic}</span></li>`;
+          ${p.video ? `<span class="vm cam">${ICON.cam}</span>` : ''}<span class="vm">${p.muted ? ICON.micOff : ICON.mic}</span></li>`;
       })
       .join('');
+  }
+
+  // Live-Video im runden Avatar des Namensschilds (Kamera ist opt-in)
+  #syncVideos() {
+    const s = this.state;
+    const v = this.voice;
+    for (const p of this.plates) {
+      const avatar = p.el.querySelector('.avatar');
+      const entry = s && v ? s.voice.find((x) => x.seat === p.seat && x.video && (x.self || s.seats[p.seat])) : null;
+      const video = entry ? v.videoFor(entry.self ? 'self' : entry.id) : null;
+      const current = avatar.querySelector('video');
+      if (current && current !== video) {
+        current.remove();
+        v?.mediaRoot.appendChild(current);
+      }
+      if (video && current !== video) {
+        avatar.prepend(video);
+        video.play().catch(() => {});
+      }
+      if (video) video.classList.toggle('mirror', !!entry.self);
+      p.el.classList.toggle('has-video', !!video);
+      if (!video) p.el.classList.remove('zoom');
+    }
   }
 
   // ------------------------------------------------------------ Ergebnisse

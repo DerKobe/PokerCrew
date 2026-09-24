@@ -51,7 +51,7 @@ export class Session {
   connect(socket) {
     let token = socket.handshake.auth?.token;
     if (typeof token !== 'string' || token.length < 10 || token.length > 64) token = randomUUID();
-    this.clients.set(socket.id, { socket, token, voice: { joined: false, muted: false } });
+    this.clients.set(socket.id, { socket, token, voice: { joined: false, muted: false, video: false } });
     const seat = this.seatOfToken(token);
     if (seat != null) {
       this.seats[seat].connected = true;
@@ -428,7 +428,7 @@ export class Session {
   voiceJoin(socket, d) {
     const c = this.clients.get(socket.id);
     if (!c) return;
-    c.voice = { joined: true, muted: !!d?.muted };
+    c.voice = { joined: true, muted: !!d?.muted, video: !!d?.video };
     const peers = [...this.clients.entries()].filter(([id, o]) => id !== socket.id && o.voice.joined).map(([id]) => id);
     socket.emit('voice-peers', { peers });
     this.broadcast();
@@ -444,6 +444,7 @@ export class Session {
     const c = this.clients.get(socket.id);
     if (!c) return;
     c.voice.muted = !!d?.muted;
+    if (d && 'video' in d) c.voice.video = !!d.video;
     this.broadcast();
   }
 
@@ -491,7 +492,7 @@ export class Session {
       log: this.log.slice(-40),
       voice: [...this.clients.entries()]
         .filter(([, c]) => c.voice.joined)
-        .map(([id, c]) => ({ id, name: nameOf(c.token), seat: this.seatOfToken(c.token), muted: c.voice.muted, self: id === socketId })),
+        .map(([id, c]) => ({ id, name: nameOf(c.token), seat: this.seatOfToken(c.token), muted: c.voice.muted, video: c.voice.video, self: id === socketId })),
       spectators: [...this.clients.values()].filter((c) => this.seatOfToken(c.token) == null).length,
     };
   }

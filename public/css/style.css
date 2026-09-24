@@ -135,7 +135,18 @@ kbd {
   box-shadow: 0 0 0 calc(2px + var(--speak) * 4px) rgba(62, 194, 122, calc(var(--speak) * 0.9));
   transition: box-shadow 0.08s;
 }
-.plate .timer { position: absolute; inset: 0; transform: rotate(-90deg); }
+.plate .timer { position: absolute; inset: 0; transform: rotate(-90deg); z-index: 2; }
+/* Live-Video im Avatar: etwas größer, ragt über die Pille hinaus */
+.plate .avatar video { position: absolute; inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 50%; object-fit: cover; background: #111; }
+.plate .avatar video.mirror { transform: scaleX(-1); }
+.plate.has-video .avatar {
+  width: 78px; height: 78px; margin: -20px 0 -20px -6px;
+  pointer-events: auto; cursor: zoom-in;
+  transition: width 0.25s, height 0.25s, margin 0.25s, box-shadow 0.08s;
+}
+.plate.has-video .ini { display: none; }
+.plate.has-video.zoom { z-index: 10; }
+.plate.has-video.zoom .avatar { width: 190px; height: 190px; margin: -76px 0 -76px -12px; cursor: zoom-out; }
 .plate .timer circle { fill: none; stroke: var(--gold); stroke-width: 3; stroke-dasharray: 126; stroke-dashoffset: 126; stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
 .plate.hurry .timer circle { stroke: var(--red); }
 .plate .meta { line-height: 1.2; min-width: 0; }
@@ -166,6 +177,9 @@ kbd {
 .plate.turn { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(230, 196, 106, 0.35), 0 0 28px rgba(230, 196, 106, 0.35); }
 .plate.me { background: linear-gradient(180deg, rgba(48, 40, 22, 0.92), rgba(18, 15, 10, 0.94)); border-color: rgba(230, 196, 106, 0.45); }
 .plate.folded, .plate.out { opacity: 0.55; }
+/* mit Video: nur Name/Stack dimmen, das Gesicht bleibt hell */
+.plate.has-video.folded, .plate.has-video.out { opacity: 1; }
+.plate.has-video.folded > :not(.avatar), .plate.has-video.out > :not(.avatar) { opacity: 0.55; }
 .plate.offline .avatar { filter: grayscale(1) brightness(0.6); }
 .plate.winner { border-color: var(--gold); box-shadow: 0 0 36px rgba(230, 196, 106, 0.55); }
 .plate .sit { display: none; }
@@ -219,6 +233,8 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 .vlist .st-failed .dot, .vlist .st-disconnected .dot { background: var(--red); }
 .vlist .vn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vlist .vm svg { width: 14px; height: 14px; fill: var(--muted); display: block; }
+.vlist .vm.cam svg { fill: var(--green); }
+.icon.on { color: var(--green); }
 .vlist li.muted .vm svg { fill: var(--red); }
 
 /* ------------------------------------------------ Log */
@@ -459,6 +475,8 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #strength { bottom: auto; top: 52px; font-size: 13px; }
   .plate { min-width: 0; padding: 4px 10px 4px 4px; gap: 6px; }
   .plate .avatar { width: 34px; height: 34px; font-size: 12px; }
+  .plate.has-video .avatar { width: 56px; height: 56px; margin: -14px 0 -14px -4px; }
+  .plate.has-video.zoom .avatar { width: 130px; height: 130px; margin: -50px 0 -50px -8px; }
   .plate .name { max-width: 80px; font-size: 12px; }
   .seatgrid { grid-template-columns: repeat(3, 1fr); }
   .row.three { flex-direction: column; }
