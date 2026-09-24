@@ -1,0 +1,6 @@
+# Caddy holt automatisch ein kostenloses HTTPS-Zertifikat (Let's Encrypt) für DOMAIN.
+# HTTPS ist Pflicht: Browser geben das Mikrofon nur auf sicheren Seiten frei.
+{$DOMAIN} {
+	encode gzip zstd
+	reverse_proxy app:3000
+}

@@ -1,0 +1,53 @@
+# Einfachster Start: sudo bash deploy/setup.sh  (legt .env an)
+# Manuell:          DOMAIN=poker.example.com docker compose up -d --build
+services:
+  app:
+    build: ..
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      # Optionaler TURN-Server (siehe unten) für Freunde hinter strengen Firewalls/Mobilfunk:
+      - TURN_URL=${TURN_URL:-}
+      - TURN_USERNAME=${TURN_USERNAME:-}
+      - TURN_PASSWORD=${TURN_PASSWORD:-}
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:?Bitte DOMAIN setzen, z. B. DOMAIN=poker.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Optional: eigener TURN-Server (coturn). Nur nötig, wenn Voice bei einzelnen
+  # Freunden nicht verbindet. Aktivieren mit: docker compose --profile turn up -d
+  turn:
+    image: coturn/coturn:4.6
+    profiles: ["turn"]
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -n
+      - --listening-port=3478
+      - --fingerprint
+      - --lt-cred-mech
+      - --user=${TURN_USERNAME:-poker}:${TURN_PASSWORD:-bitte-aendern}
+      - --realm=${DOMAIN}
+      - --external-ip=${TURN_EXTERNAL_IP:-}
+      - --min-port=49160
+      - --max-port=49200
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+
+volumes:
+  caddy_data:
+  caddy_config:

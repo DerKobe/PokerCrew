@@ -1,0 +1,24 @@
+{
+  "name": "pokercrew",
+  "version": "1.0.0",
+  "description": "Selbst gehostetes No-Limit Hold’em Turnier für Freunde – three.js Tisch + Voicechat",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "three": "^0.186.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}
