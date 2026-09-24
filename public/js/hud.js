@@ -629,7 +629,7 @@ export class Hud {
         ${
           legal.canCheck
             ? '<button class="call" data-a="check">Checken <kbd>C</kbd></button>'
-            : `<button class="call${facingAllIn ? ' vs-allin' : ''}" data-a="call"${facingAllIn ? ' title="All-in callen – Tequila!"' : ''}>${facingAllIn ? TEQUILA_SHOT : ''}${callAll ? 'All-in' : 'Mitgehen'} ${fmt(legal.toCall)} <kbd>C</kbd></button>`
+            : `<button class="call${facingAllIn ? ' vs-allin' : ''}" data-a="call"${facingAllIn ? ` title="All-in callen (${fmt(legal.toCall)})"` : ''}>${facingAllIn ? TEQUILA_SHOT : ''}${facingAllIn ? 'Tequila!' : callAll ? 'All-in' : 'Mitgehen'} ${fmt(legal.toCall)} <kbd>C</kbd></button>`
         }
         ${
           legal.canRaise
