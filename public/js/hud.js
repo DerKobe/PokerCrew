@@ -1,7 +1,8 @@
 // HTML interface on top of the 3D scene.
 import * as THREE from 'three';
 import { MAX_SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
-import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX, FELTS, RIMS } from '/shared/config.js';
+import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX, FELTS, RIMS, CARD_BACKS } from '/shared/config.js';
+import { cardBackPreview } from './textures.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { GADGETS, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
@@ -315,6 +316,9 @@ export class Hud {
               <div class="look"><span class="lbl">${t('lobby.rim')}</span><div class="look-opts" data-k="rim">${RIMS.map(
                 (r) => `<button type="button" data-v="${r}"><i class="sw sw-${r}"></i>${t(`look.${r}`)}</button>`,
               ).join('')}</div></div>
+              <div class="look"><span class="lbl">${t('lobby.cardBack')}</span><div class="look-opts backs" data-k="cardBack">${CARD_BACKS.map(
+                (b) => `<button type="button" data-v="${b}" title="${esc(t(`back.${b}`))}" aria-label="${esc(t(`back.${b}`))}"><img src="${cardBackPreview(b)}" alt=""></button>`,
+              ).join('')}</div></div>
             </div>
             <h3>${t('lobby.game')}</h3>
             <div class="presets"></div>
@@ -607,7 +611,7 @@ export class Hud {
     const last = c.levels[c.levels.length - 1];
     const preset = PRESETS.find((p) => p.levelMinutes === c.levelMinutes);
     $('.struct-sum', el).innerHTML =
-      `<div>${t('lobby.sum0', { title: esc(c.title), felt: t(`look.${c.felt}`), rim: t(`look.${c.rim}`) })}</div>` +
+      `<div>${t('lobby.sum0', { title: esc(c.title), felt: t(`look.${c.felt}`), rim: t(`look.${c.rim}`), back: t(`back.${c.cardBack}`) })}</div>` +
       `<div>${t('lobby.sum1', { stack: c.startingStack, min: c.levelMinutes, sec: c.actionSeconds, preset: preset && t(`preset.${preset.id}`) })}</div>` +
       `<div>${t('lobby.sum2', { levels: c.levels.length, sb1: first.sb, bb1: first.bb, sb2: last.sb, bb2: last.bb })}</div>`;
     $('#btn-addlvl').disabled = !canEdit;

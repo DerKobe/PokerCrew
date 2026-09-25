@@ -8,6 +8,7 @@ import { ChipFidget } from './fidget.js';
 import { Gadgets } from './gadgets.js';
 import { Trophies } from './trophies.js';
 import { t } from './i18n.js';
+import { setCardBack } from './cards.js';
 
 // Entering needs a click so the browser allows audio playback and microphone access.
 // The handler is registered right away; the rest may still wait for the scene to load.
@@ -69,6 +70,7 @@ socket.on('welcome', (w) => {
 });
 socket.on('state', (s) => {
   stage.setLook(s.config);
+  setCardBack(s.config.cardBack);
   view.update(s);
   gadgets.update(s);
   fidget.update(s);

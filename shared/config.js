@@ -8,6 +8,7 @@ export const TITLE_MAX = 28;
 // Table look: felt colour and material of the ring around the felt
 export const FELTS = ['green', 'red', 'blue'];
 export const RIMS = ['wood', 'marbleDark', 'marbleLight'];
+export const CARD_BACKS = ['red', 'blue', 'green', 'black', 'purple', 'ivory'];
 
 // Default structure: 5 seats, 10,000 chips each, 10-minute levels.
 // Rule of thumb: a tournament roughly ends once the big blind reaches ~1/30 of all chips.
@@ -39,6 +40,7 @@ export function defaultConfig() {
     title: DEFAULT_TITLE,
     felt: FELTS[0],
     rim: RIMS[0],
+    cardBack: CARD_BACKS[0],
     bots: false, // fill empty seats with bot players when the tournament starts
     seats: DEFAULT_SEATS,
     startingStack: 10000,
@@ -61,6 +63,7 @@ export function sanitizeConfig(input, base = defaultConfig()) {
   if ('bots' in input) c.bots = !!input.bots;
   if (FELTS.includes(input.felt)) c.felt = input.felt;
   if (RIMS.includes(input.rim)) c.rim = input.rim;
+  if (CARD_BACKS.includes(input.cardBack)) c.cardBack = input.cardBack;
   if ('seats' in input) c.seats = int(input.seats, MIN_SEATS, MAX_SEATS, c.seats);
   if ('startingStack' in input) c.startingStack = int(input.startingStack, 100, 10_000_000, c.startingStack);
   if ('levelMinutes' in input) c.levelMinutes = int(input.levelMinutes, 1, 120, c.levelMinutes);

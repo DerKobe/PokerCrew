@@ -266,7 +266,11 @@ test('Table look (name, felt, rim): editable by everyone in the lobby, sanitized
   assert.equal(s.config.title, 'PokerCrew', 'empty falls back to the default');
   assert.equal(s.config.felt, 'green');
   assert.equal(s.config.rim, 'wood');
-  spec.send('table', { felt: 'red', rim: 'marbleDark' });
+  assert.equal(s.config.cardBack, 'red');
+  spec.send('table', { felt: 'red', rim: 'marbleDark', cardBack: 'black' });
+  assert.equal(a.lastState.config.cardBack, 'black');
+  spec.send('table', { cardBack: 'tartan' });
+  assert.equal(s.config.cardBack, 'black', 'unknown card backs are ignored');
   assert.equal(a.lastState.config.felt, 'red');
   assert.equal(a.lastState.config.rim, 'marbleDark');
   spec.send('table', { felt: 'purple', rim: 'gold', startingStack: 5 });

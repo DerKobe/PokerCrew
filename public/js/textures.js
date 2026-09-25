@@ -671,9 +671,20 @@ export function cardFaceTexture(card) {
   return faceCache.get(card);
 }
 
-let backTex = null;
-export function cardBackTexture() {
-  if (backTex) return backTex;
+// Card back designs: colours + pattern. Chosen per tournament in the lobby (config.cardBack).
+export const CARD_BACK_STYLES = {
+  red: { from: '#8e1026', to: '#5a0717', medal: '#6d0a1c', accent: '#e6c46a', pattern: 'lattice' },
+  blue: { from: '#1d4f9c', to: '#0f2b5c', medal: '#143a78', accent: '#d5e0f0', pattern: 'lattice' },
+  green: { from: '#12704a', to: '#083d28', medal: '#0b5236', accent: '#e6c46a', pattern: 'pinstripe' },
+  black: { from: '#26262b', to: '#0b0b0d', medal: '#141417', accent: '#d9b25a', pattern: 'deco' },
+  purple: { from: '#5b2a6e', to: '#2e1238', medal: '#43204f', accent: '#e8c77a', pattern: 'dots' },
+  ivory: { from: '#f4ecd8', to: '#e2d6b8', medal: '#1f3a66', accent: '#1f3a66', pattern: 'waves', light: true },
+};
+
+const backCache = {};
+export function cardBackTexture(style = 'red') {
+  if (backCache[style]) return backCache[style];
+  const S = CARD_BACK_STYLES[style] || CARD_BACK_STYLES.red;
   const W = CARD_W;
   const H = CARD_H;
   const c = canvas(W, H);
@@ -682,57 +693,130 @@ export function cardBackTexture() {
   ctx.fillRect(0, 0, W, H);
   const m = 22;
   const g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, '#8e1026');
-  g.addColorStop(1, '#5a0717');
+  g.addColorStop(0, S.from);
+  g.addColorStop(1, S.to);
   ctx.fillStyle = g;
   roundRect(ctx, m, m, W - 2 * m, H - 2 * m, 18);
   ctx.fill();
-  // Diamond lattice
+  // Pattern inside the inner frame
+  const x0 = m + 10;
+  const y0 = m + 10;
+  const iw = W - 2 * m - 20;
+  const ih = H - 2 * m - 20;
   ctx.save();
-  roundRect(ctx, m + 10, m + 10, W - 2 * m - 20, H - 2 * m - 20, 12);
+  roundRect(ctx, x0, y0, iw, ih, 12);
   ctx.clip();
-  ctx.strokeStyle = 'rgba(255, 214, 140, 0.35)';
-  ctx.lineWidth = 2;
-  for (let i = -H; i < W + H; i += 26) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i + H, H);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(i, H);
-    ctx.lineTo(i + H, 0);
-    ctx.stroke();
+  const line = (alpha, width = 2) => {
+    ctx.strokeStyle = hexAlpha(S.accent, alpha);
+    ctx.lineWidth = width;
+  };
+  if (S.pattern === 'lattice') {
+    line(0.35);
+    for (let i = -H; i < W + H; i += 26) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + H, H);
+      ctx.moveTo(i, H);
+      ctx.lineTo(i + H, 0);
+      ctx.stroke();
+    }
+  } else if (S.pattern === 'pinstripe') {
+    line(0.28, 1.5);
+    for (let i = -H; i < W + H; i += 11) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + H, H);
+      ctx.stroke();
+    }
+    line(0.5, 3);
+    for (let i = -H; i < W + H; i += 66) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + H, H);
+      ctx.stroke();
+    }
+  } else if (S.pattern === 'dots') {
+    ctx.fillStyle = hexAlpha(S.accent, 0.4);
+    for (let y = y0, row = 0; y < y0 + ih + 20; y += 22, row++) {
+      for (let x = x0 + (row % 2) * 11; x < x0 + iw + 20; x += 22) {
+        ctx.beginPath();
+        ctx.arc(x, y, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (S.pattern === 'deco') {
+    // Art Deco sunburst: rays from the centre plus concentric steps
+    line(0.3, 2);
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 36) {
+      ctx.beginPath();
+      ctx.moveTo(W / 2, H / 2);
+      ctx.lineTo(W / 2 + Math.cos(a) * H, H / 2 + Math.sin(a) * H);
+      ctx.stroke();
+    }
+    line(0.45, 3);
+    for (let r = 140; r < H; r += 46) {
+      ctx.beginPath();
+      ctx.ellipse(W / 2, H / 2, r * 0.82, r, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else if (S.pattern === 'waves') {
+    line(0.55, 2);
+    for (let y = y0 - 10; y < y0 + ih + 20; y += 16) {
+      ctx.beginPath();
+      for (let x = x0 - 10; x <= x0 + iw + 10; x += 6) {
+        const yy = y + Math.sin((x / iw) * Math.PI * 6 + y * 0.05) * 5;
+        if (x === x0 - 10) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
   }
   ctx.restore();
-  ctx.strokeStyle = '#e6c46a';
+  ctx.strokeStyle = S.accent;
   ctx.lineWidth = 4;
-  roundRect(ctx, m + 10, m + 10, W - 2 * m - 20, H - 2 * m - 20, 12);
+  roundRect(ctx, x0, y0, iw, ih, 12);
   ctx.stroke();
   // Medallion
-  ctx.fillStyle = '#6d0a1c';
+  ctx.fillStyle = S.medal;
   ctx.beginPath();
   ctx.ellipse(W / 2, H / 2, 108, 108, 0, 0, Math.PI * 2);
   ctx.fill();
+  const ink = S.light ? '#f4ecd8' : S.accent;
   ctx.lineWidth = 5;
-  ctx.strokeStyle = '#e6c46a';
+  ctx.strokeStyle = S.accent;
   ctx.stroke();
   ctx.lineWidth = 2;
+  ctx.strokeStyle = ink;
   ctx.beginPath();
   ctx.ellipse(W / 2, H / 2, 94, 94, 0, 0, Math.PI * 2);
   ctx.stroke();
   const suits = ['s', 'h', 'c', 'd'];
-  suits.forEach((s, i) => {
+  suits.forEach((su, i) => {
     const a = (i / 4) * Math.PI * 2 - Math.PI / 2;
-    drawSuit(ctx, s, W / 2 + Math.cos(a) * 52, H / 2 + Math.sin(a) * 52, 46, '#e6c46a');
+    drawSuit(ctx, su, W / 2 + Math.cos(a) * 52, H / 2 + Math.sin(a) * 52, 46, ink);
   });
   ctx.font = `700 34px ${SERIF}`;
-  ctx.fillStyle = '#e6c46a';
+  ctx.fillStyle = ink;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('PC', W / 2, H / 2 + 2);
   addNoise(ctx, W, H, 8, 99);
-  backTex = toTexture(c);
-  return backTex;
+  return (backCache[style] = toTexture(c));
+}
+
+// Small preview (data URL) of a card back for the lobby
+const backPreviews = {};
+export function cardBackPreview(style) {
+  if (backPreviews[style]) return backPreviews[style];
+  const src = cardBackTexture(style).image;
+  const c = canvas(64, Math.round((64 * CARD_H) / CARD_W));
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  return (backPreviews[style] = c.toDataURL('image/png'));
+}
+
+function hexAlpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
 export function dealerButtonTexture() {
