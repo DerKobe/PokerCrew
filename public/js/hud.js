@@ -1,7 +1,7 @@
 // HTML interface on top of the 3D scene.
 import * as THREE from 'three';
 import { MAX_SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
-import { MIN_SEATS } from '/shared/config.js';
+import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX } from '/shared/config.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { GADGETS, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
@@ -37,6 +37,7 @@ const ICON = {
   bellOff: '<svg viewBox="0 0 24 24"><path d="M20 18.69 7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01A6 6 0 0 0 6 11v5l-2 2v1h13.73l2 2L21 19.72l-1-1.03ZM12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2Zm6-7.32V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09a5.8 5.8 0 0 0-1.53.53L18 14.68Z"/></svg>',
   menu: '<svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>',
   chat: '<svg viewBox="0 0 24 24"><path d="M4 4h16v12H5.17L4 17.17V4Zm0-2a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4Z"/></svg>',
+  pin: '<svg viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2Z"/></svg>',
   link: '<svg viewBox="0 0 24 24"><path d="M3.9 12a3.1 3.1 0 0 1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7A3.1 3.1 0 0 1 3.9 12ZM8 13h8v-2H8v2Zm9-6h-4v1.9h4a3.1 3.1 0 0 1 0 6.2h-4V17h4a5 5 0 0 0 0-10Z"/></svg>',
 };
 
@@ -143,9 +144,11 @@ export class Hud {
         ${langPicker()}
         <button class="icon" id="btn-invite" data-i18n-title="top.invite">${ICON.link}</button>
         <button class="icon" id="btn-pause">${ICON.pause}</button>
+        <button class="icon" id="btn-fix">${ICON.pin}</button>
         <button class="icon" id="btn-sfx" data-i18n-title="top.sfx">${ICON.bell}</button>
         <button class="icon" id="btn-menu" data-i18n-title="top.menu">${ICON.menu}</button>
         <div class="menu hidden" id="menu">
+          <button id="btn-fix-menu" class="mobile-only"></button>
           <button id="btn-abort" data-i18n="top.abort"></button>
           <button id="btn-full" data-i18n="top.fullscreen"></button>
         </div>
@@ -157,6 +160,16 @@ export class Hud {
       );
     };
     $('#btn-pause').onclick = () => this.send('pause');
+    // Fixed table: stops all camera movement (default follows the OS "reduce motion" setting)
+    const saved = localStorage.getItem('pc.fixed');
+    this.stage.fixed = saved != null ? saved === '1' : matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.stage.motionK = this.stage.fixed ? 0 : 1;
+    this.#renderFix();
+    $('#btn-fix').onclick = $('#btn-fix-menu').onclick = () => {
+      this.stage.fixed = !this.stage.fixed;
+      localStorage.setItem('pc.fixed', this.stage.fixed ? '1' : '0');
+      this.#renderFix();
+    };
     sfx.enabled = localStorage.getItem('pc.sfx') !== '0';
     const sfxBtn = $('#btn-sfx');
     const renderSfx = () => {
@@ -234,8 +247,18 @@ export class Hud {
     applyStatic();
   }
 
+  #renderFix() {
+    const b = $('#btn-fix');
+    b.classList.toggle('on', this.stage.fixed);
+    b.setAttribute('aria-pressed', String(this.stage.fixed));
+    b.title = t(this.stage.fixed ? 'top.unfix' : 'top.fix');
+    // on phones the button lives in the ⋮ menu to keep the top bar short
+    $('#btn-fix-menu').textContent = `📌 ${t(this.stage.fixed ? 'top.unfix' : 'top.fix')}`;
+  }
+
   // Language switched: rebuild generated markup and re-render everything from the last state
   #relocalize() {
+    this.#renderFix();
     this.#buildLobby();
     this.#buildJoin();
     for (const p of this.plates) p.el.querySelector('.sit').textContent = t('plate.sit', { n: p.seat + 1 });
@@ -274,6 +297,9 @@ export class Hud {
         <div class="struct">
           <div class="struct-head">
             <h2>${t('lobby.struct')}</h2>
+          </div>
+          <div class="row title-row">
+            <label>${t('lobby.tournamentName')}<input id="in-title" maxlength="${TITLE_MAX}" placeholder="${DEFAULT_TITLE}" autocomplete="off"></label>
           </div>
           <div class="row struct-summary">
             <div class="struct-sum"></div>
@@ -339,7 +365,22 @@ export class Hud {
       const next = levelAt({ levels: lv }, lv.length);
       this.send('config', { levels: [...lv, next] });
     };
-    $('#btn-reset').onclick = () => this.send('config', defaultConfig());
+    // "Default" resets the structure only – not the table size or the tournament name
+    $('#btn-reset').onclick = () => {
+      const { startingStack, levelMinutes, actionSeconds, levels } = defaultConfig();
+      this.send('config', { startingStack, levelMinutes, actionSeconds, levels });
+    };
+    // Tournament name: anyone in the lobby may edit it; sent while typing (debounced)
+    const titleIn = $('#in-title');
+    const sendTitle = () => {
+      clearTimeout(this.titleT);
+      this.send('title', titleIn.value);
+    };
+    titleIn.addEventListener('input', () => {
+      clearTimeout(this.titleT);
+      this.titleT = setTimeout(sendTitle, 400);
+    });
+    titleIn.addEventListener('change', sendTitle);
     $('#btn-start').onclick = () => this.send('start');
     // Seat count: a direct choice (not +/-), so two people picking the same number do not fight;
     // open to everyone in the lobby, also before taking a seat
@@ -518,6 +559,8 @@ export class Hud {
       if (document.activeElement !== inp) inp.value = v;
       inp.disabled = !canEdit;
     };
+    const titleIn = $('#in-title');
+    if (document.activeElement !== titleIn) titleIn.value = c.title;
     setVal('#in-stack', c.startingStack);
     setVal('#in-level', c.levelMinutes);
     setVal('#in-action', c.actionSeconds);

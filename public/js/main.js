@@ -65,6 +65,7 @@ socket.on('welcome', (w) => {
   voice?.setIceServers(iceServers);
 });
 socket.on('state', (s) => {
+  stage.setTitle(s.config.title);
   view.update(s);
   gadgets.update(s);
   hud.update(s);

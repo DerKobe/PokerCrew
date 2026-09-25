@@ -3,6 +3,8 @@
 export const MAX_SEATS = 10;
 export const MIN_SEATS = 2;
 export const DEFAULT_SEATS = 5;
+export const DEFAULT_TITLE = 'PokerCrew';
+export const TITLE_MAX = 28;
 
 // Default structure: 5 seats, 10,000 chips each, 10-minute levels.
 // Rule of thumb: a tournament roughly ends once the big blind reaches ~1/30 of all chips.
@@ -31,6 +33,7 @@ export const PRESETS = [
 
 export function defaultConfig() {
   return {
+    title: DEFAULT_TITLE,
     seats: DEFAULT_SEATS,
     startingStack: 10000,
     levelMinutes: 10,
@@ -48,6 +51,7 @@ function int(v, min, max, fallback) {
 export function sanitizeConfig(input, base = defaultConfig()) {
   const c = { ...base, levels: base.levels.map((l) => ({ ...l })) };
   if (!input || typeof input !== 'object') return c;
+  if ('title' in input) c.title = String(input.title ?? '').replace(/\s+/g, ' ').trim().slice(0, TITLE_MAX) || DEFAULT_TITLE;
   if ('seats' in input) c.seats = int(input.seats, MIN_SEATS, MAX_SEATS, c.seats);
   if ('startingStack' in input) c.startingStack = int(input.startingStack, 100, 10_000_000, c.startingStack);
   if ('levelMinutes' in input) c.levelMinutes = int(input.levelMinutes, 1, 120, c.levelMinutes);

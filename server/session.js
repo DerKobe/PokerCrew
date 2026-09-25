@@ -82,6 +82,7 @@ export class Session {
     on('stand', () => this.stand(token));
     on('config', (d) => this.setConfig(token, d));
     on('seats', (n) => this.setSeats(n));
+    on('title', (text) => this.setTitle(text));
     on('start', () => this.start(token));
     on('action', (d) => this.action(token, d?.type, d?.amount));
     on('back', () => this.setAway(token, false));
@@ -212,6 +213,15 @@ export class Session {
     if (this.phase !== 'lobby') throw new UserError('configLocked');
     const next = sanitizeConfig({ seats: n }, this.config);
     this.#fitSeats(next);
+    this.config = next;
+    this.broadcast();
+  }
+
+  // The tournament name (printed on the felt) is open to everyone in the lobby as well
+  setTitle(text) {
+    if (this.phase !== 'lobby') throw new UserError('configLocked');
+    const next = sanitizeConfig({ title: text }, this.config);
+    if (next.title === this.config.title) return;
     this.config = next;
     this.broadcast();
   }

@@ -252,3 +252,23 @@ test('Late registration: free seat while nobody has busted, dealt in from the ne
   assert.ok(d.received.some(([ev, x]) => ev === 'toast' && x.key === 'err.lateRegClosed'));
   s.close();
 });
+
+test('Tournament name: editable by everyone in the lobby, sanitized, locked while running', () => {
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
+  const [a, b, spec] = [0, 1, 2].map((i) => new FakeSocket(`t${i}`, `token-title-${i}`));
+  for (const so of [a, b, spec]) s.connect(so);
+  assert.equal(spec.lastState.config.title, 'PokerCrew');
+  spec.send('title', '  Friday   Night\tPoker  ');
+  assert.equal(a.lastState.config.title, 'Friday Night Poker');
+  spec.send('title', 'x'.repeat(60));
+  assert.equal(s.config.title.length, 28);
+  spec.send('title', '   ');
+  assert.equal(s.config.title, 'PokerCrew', 'empty falls back to the default');
+  a.send('sit', { seat: 0, name: 'A' });
+  b.send('sit', { seat: 1, name: 'B' });
+  a.send('start');
+  spec.send('title', 'Too late');
+  s.close();
+  assert.equal(s.config.title, 'PokerCrew');
+  assert.ok(spec.received.some(([ev, d]) => ev === 'toast' && d.key === 'err.configLocked'));
+});
