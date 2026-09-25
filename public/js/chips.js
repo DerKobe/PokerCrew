@@ -1,4 +1,4 @@
-// Chip-Stapel aus echten Zylindern mit Randeinlagen.
+// Chip stacks built from real cylinders with edge inserts.
 import * as THREE from 'three';
 import { DENOMS, chipTopTexture, chipSideTexture, rng } from './textures.js';
 
@@ -35,8 +35,8 @@ function chipMaterials(d) {
   return mats.get(d.value);
 }
 
-// Betrag in Chips zerlegen.
-// pretty: wie ein echter Spielerstack – mehrere Farben statt nur weniger großer Chips.
+// Break an amount down into chips.
+// pretty: like a real player stack – several colours instead of just a few big chips.
 export function breakdown(amount, maxChips = 80, pretty = false) {
   const out = [];
   let rest = Math.max(0, Math.floor(amount));
@@ -51,7 +51,7 @@ export function breakdown(amount, maxChips = 80, pretty = false) {
     }
   }
   let total = out.reduce((s, x) => s + x.n, 0);
-  // Begrenzen: überzählige Kleinstchips weglassen (nur Optik)
+  // Limit: drop surplus small chips (visual only)
   while (total > maxChips && out.length) {
     const last = out[out.length - 1];
     last.n -= 1;
@@ -62,7 +62,7 @@ export function breakdown(amount, maxChips = 80, pretty = false) {
 }
 
 /**
- * Baut eine Gruppe von Chip-Säulen.
+ * Builds a group of chip columns.
  * @param {number} amount
  * @param {{seed?:number, layout?:'row'|'cluster', maxChips?:number}} opts
  */
@@ -84,7 +84,7 @@ export function buildStack(amount, { seed = 1, layout = 'row', perRow = 5, maxCh
   const spacing = CHIP_R * 2.12;
   const positions = columnPositions(columns.length, spacing, layout, perRow);
   const g = chipGeometry();
-  // Säulen (Piles) merken – der Chip-Riffle arbeitet darauf (siehe fidget.js)
+  // Remember the columns (piles) – the chip riffle works on them (see fidget.js)
   const piles = [];
   columns.forEach((col, ci) => {
     const [px, pz] = positions[ci];
@@ -110,7 +110,7 @@ export function buildStack(amount, { seed = 1, layout = 'row', perRow = 5, maxCh
 function columnPositions(n, s, layout, perRow = 5) {
   const pos = [];
   if (layout === 'cluster') {
-    // Wabenförmig um die Mitte
+    // Honeycomb around the centre
     const rings = [[0, 0]];
     for (let ring = 1; rings.length < n; ring++) {
       for (let k = 0; k < 6 * ring && rings.length < n + 6; k++) {
@@ -120,7 +120,7 @@ function columnPositions(n, s, layout, perRow = 5) {
     }
     return rings.slice(0, n);
   }
-  // Reihe(n) – maximal perRow pro Reihe, weitere Reihen versetzt dahinter
+  // Row(s) – at most perRow per row, further rows staggered behind
   for (let i = 0; i < n; i++) {
     const row = Math.floor(i / perRow);
     const idx = i % perRow;

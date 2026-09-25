@@ -1,12 +1,12 @@
-# Einfachster Start: sudo bash deploy/setup.sh  (legt .env an)
-# Manuell:          DOMAIN=poker.example.com docker compose up -d --build
+# Easiest start: sudo bash deploy/setup.sh  (creates .env)
+# Manually:      DOMAIN=poker.example.com docker compose up -d --build
 services:
   app:
     build: ..
     restart: unless-stopped
     environment:
       - PORT=3000
-      # Optionaler TURN-Server (siehe unten) für Freunde hinter strengen Firewalls/Mobilfunk:
+      # Optional TURN server (see below) for friends behind strict firewalls/mobile networks:
       - TURN_URL=${TURN_URL:-}
       - TURN_USERNAME=${TURN_USERNAME:-}
       - TURN_PASSWORD=${TURN_PASSWORD:-}
@@ -21,14 +21,14 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - DOMAIN=${DOMAIN:?Bitte DOMAIN setzen, z. B. DOMAIN=poker.example.com}
+      - DOMAIN=${DOMAIN:?Please set DOMAIN, e.g. DOMAIN=poker.example.com}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
 
-  # Optional: eigener TURN-Server (coturn). Nur nötig, wenn Voice bei einzelnen
-  # Freunden nicht verbindet. Aktivieren mit: docker compose --profile turn up -d
+  # Optional: your own TURN server (coturn). Only needed if voice does not connect for
+  # some friends. Enable with: docker compose --profile turn up -d
   turn:
     image: coturn/coturn:4.6
     profiles: ["turn"]
@@ -39,7 +39,7 @@ services:
       - --listening-port=3478
       - --fingerprint
       - --lt-cred-mech
-      - --user=${TURN_USERNAME:-poker}:${TURN_PASSWORD:-bitte-aendern}
+      - --user=${TURN_USERNAME:-poker}:${TURN_PASSWORD:-please-change}
       - --realm=${DOMAIN}
       - --external-ip=${TURN_EXTERNAL_IP:-}
       - --min-port=49160

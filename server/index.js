@@ -11,8 +11,8 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 const app = express();
 app.disable('x-powered-by');
-// Eigene Dateien immer beim Server nachfragen (ETag -> meist nur 304), damit nach einem
-// Deploy sofort alle den neuen Stand haben. three.js ändert sich nur mit Paket-Updates.
+// Always revalidate our own files (ETag -> usually just a 304) so everyone gets the new
+// version right after a deploy. three.js only changes with package updates.
 const fresh = { maxAge: 0, setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') };
 app.use(express.static(path.join(root, 'public'), fresh));
 app.use('/shared', express.static(path.join(root, 'shared'), fresh));
@@ -25,7 +25,7 @@ const session = new Session(io);
 io.on('connection', (socket) => session.connect(socket));
 
 server.listen(PORT, HOST, () => {
-  console.log(`PokerCrew läuft auf http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  console.log(`PokerCrew running at http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
 });
 
 const shutdown = () => {
@@ -35,6 +35,6 @@ const shutdown = () => {
   setTimeout(() => process.exit(0), 2000).unref();
 };
 process.on('SIGINT', shutdown);
-process.on('uncaughtException', (err) => console.error('Unerwarteter Fehler:', err));
-process.on('unhandledRejection', (err) => console.error('Unerwarteter Fehler:', err));
+process.on('uncaughtException', (err) => console.error('Unexpected error:', err));
+process.on('unhandledRejection', (err) => console.error('Unexpected error:', err));
 process.on('SIGTERM', shutdown);

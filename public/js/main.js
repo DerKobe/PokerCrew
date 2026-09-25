@@ -6,9 +6,10 @@ import { audioContext } from './sound.js';
 import { preloadCardArt } from './textures.js';
 import { ChipFidget } from './fidget.js';
 import { Gadgets } from './gadgets.js';
+import { t } from './i18n.js';
 
-// Beitreten: Klick ist nötig, damit der Browser Audio abspielen und das Mikro freigeben darf.
-// Der Handler wird sofort registriert; der Rest wartet ggf. auf das Laden der Szene.
+// Entering needs a click so the browser allows audio playback and microphone access.
+// The handler is registered right away; the rest may still wait for the scene to load.
 let resolveEnter;
 const entered = new Promise((r) => (resolveEnter = r));
 const splash = document.getElementById('splash');
@@ -22,7 +23,7 @@ document.getElementById('btn-enter').addEventListener(
   { once: true },
 );
 
-// Schriften laden, bevor Canvas-Texturen gezeichnet werden
+// Load fonts before canvas textures are drawn
 try {
   await Promise.race([
     Promise.all([
@@ -40,7 +41,6 @@ try {
 
 const stage = new Stage(document.getElementById('stage'));
 const view = new TableView(stage);
-// Entwickler-Hilfe: ?debug in der URL macht Szene und Tischansicht in der Konsole verfügbar
 
 const socket = io({
   auth: (cb) => cb({ token: localStorage.getItem('pc.token') }),
@@ -54,7 +54,7 @@ stage.onLayout = () => {
   view.relayout();
   gadgets.relayout();
 };
-// Entwickler-Hilfe: ?debug in der URL macht Szene und Tischansicht in der Konsole verfügbar
+// Developer aid: ?debug in the URL exposes the scene, table view and gadgets in the console
 if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { __stage: stage, __view: view, __gadgets: gadgets });
 let iceServers = null;
 let voice = null;
@@ -70,7 +70,7 @@ socket.on('state', (s) => {
   hud.update(s);
   stage.idle = s.phase !== 'running';
 });
-socket.on('toast', (t) => hud.toast(t.text, t.kind));
+socket.on('toast', (m) => hud.toast(m.key ? t(m.key, m.p) : m.text, m.kind));
 socket.on('disconnect', () => document.body.classList.add('disconnected'));
 socket.on('connect', () => document.body.classList.remove('disconnected'));
 

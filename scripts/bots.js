@@ -1,7 +1,7 @@
-// Test-Bots: setzen sich an freie Plätze und spielen zufällig mit.
-// Aufruf: node scripts/bots.js [anzahl=2] [url=http://localhost:3000] [--start] [--shove] [--fun]
-// --shove: Bots gehen All-in, sobald sie erhöhen dürfen (zum Testen von All-in-Situationen)
-// --fun: Bots spielen alle paar Sekunden mit ihrem Gadget
+// Test bots: take free seats and play random moves.
+// Usage: node scripts/bots.js [count=2] [url=http://localhost:3000] [--start] [--shove] [--fun]
+// --shove: bots go all-in whenever they may raise (for testing all-in situations)
+// --fun: bots play with their gadget every few seconds
 import { io } from 'socket.io-client';
 
 const args = process.argv.slice(2);
@@ -18,7 +18,7 @@ for (let i = 0; i < count; i++) {
   const socket = io(url, { auth: { token: `bot-token-${name}-${i}-xxxxxxxx` }, transports: ['websocket'] });
   let timer = null;
   let latest = null;
-  socket.on('toast', (t) => console.log(`[${name}] ${t.text}`));
+  socket.on('toast', (t) => console.log(`[${name}] ${t.key || t.text}`));
   if (fun) setInterval(() => socket.emit('gadget-play'), 5000 + Math.random() * 7000);
   socket.on('state', (s) => {
     latest = s;
@@ -48,4 +48,4 @@ for (let i = 0; i < count; i++) {
     }, 900 + Math.random() * 1600);
   });
 }
-console.log(`${count} Bots verbunden mit ${url}`);
+console.log(`${count} bots connected to ${url}`);

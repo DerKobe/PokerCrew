@@ -1,13 +1,12 @@
-// HTML-Oberfläche über der 3D-Szene.
+// HTML interface on top of the 3D scene.
 import * as THREE from 'three';
 import { SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
-import { evaluateBest, rankValue } from '/shared/cards.js';
 import { GADGETS, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
+import { t, fmt, fmtMin, clock, describeHand, describeHole, langPicker, applyStatic, onLangChange } from './i18n.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const fmt = (n) => Math.round(n).toLocaleString('de-DE');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const mmss = (ms) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -40,7 +39,7 @@ const ICON = {
   link: '<svg viewBox="0 0 24 24"><path d="M3.9 12a3.1 3.1 0 0 1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7A3.1 3.1 0 0 1 3.9 12ZM8 13h8v-2H8v2Zm9-6h-4v1.9h4a3.1 3.1 0 0 1 0 6.2h-4V17h4a5 5 0 0 0 0-10Z"/></svg>',
 };
 
-// Tequila-Shot fürs Callen gegen ein All-in: Shotglas mit goldgelbem Tequila und Orangenscheibe am Rand
+// Tequila shot for calling an all-in: shot glass with golden tequila and an orange slice on the rim
 const TEQUILA_SHOT = `<svg class="shot" viewBox="0 0 34 40" aria-hidden="true">
   <defs><linearGradient id="tequila" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#e59a12"/></linearGradient></defs>
   <g transform="rotate(-25 23.5 11.5)">
@@ -63,7 +62,7 @@ const TEQUILA_SHOT = `<svg class="shot" viewBox="0 0 34 40" aria-hidden="true">
 
 const gadgetIcon = (id) => {
   const g = GADGETS.find((x) => x.id === id);
-  return g ? ` <span class="sg" title="${g.label}">${g.icon}</span>` : '';
+  return g ? ` <span class="sg" title="${t(`gadget.${g.id}`)}">${g.icon}</span>` : '';
 };
 
 export class Hud {
@@ -84,6 +83,7 @@ export class Hud {
     this.gadget = localStorage.getItem('pc.gadget');
     if (!isGadget(this.gadget)) this.gadget = null;
     this.#build();
+    onLangChange(() => this.#relocalize());
     stage.onFrame.push(() => this.#frame());
     setInterval(() => this.#tick(), 250);
   }
@@ -94,10 +94,10 @@ export class Hud {
     this.#renderVoice();
   }
 
-  // ------------------------------------------------------------ Aufbau
+  // ------------------------------------------------------------ Setup
 
   #build() {
-    // Namensschilder
+    // Nameplates
     const plates = $('#plates');
     this.plates = [];
     for (let i = 0; i < SEATS; i++) {
@@ -108,7 +108,7 @@ export class Hud {
         <div class="meta"><div class="name"><span class="nm"></span><i class="mic"></i></div><div class="stack"></div></div>
         <div class="tag"></div>
         <div class="act"></div>
-        <button class="sit">Platz ${i + 1} · Hinsetzen</button>`;
+        <button class="sit">${esc(t('plate.sit', { n: i + 1 }))}</button>`;
       el.querySelector('.sit').addEventListener('click', () => this.#sitAt(i));
       el.querySelector('.avatar').addEventListener('click', () => {
         if (el.classList.contains('has-video')) el.classList.toggle('zoom');
@@ -134,23 +134,24 @@ export class Hud {
       $('#rabbit').classList.add('hidden');
     };
 
-    // Topbar
+    // Top bar
     $('#topbar').innerHTML = `
       <div class="brand"><span class="logo">♠</span> PokerCrew</div>
       <div class="levelinfo"></div>
       <div class="tools">
-        <button class="icon" id="btn-invite" title="Link kopieren">${ICON.link}</button>
-        <button class="icon" id="btn-pause" title="Pause">${ICON.pause}</button>
-        <button class="icon" id="btn-sfx" title="Soundeffekte">${ICON.bell}</button>
-        <button class="icon" id="btn-menu" title="Menü">${ICON.menu}</button>
+        ${langPicker()}
+        <button class="icon" id="btn-invite" data-i18n-title="top.invite">${ICON.link}</button>
+        <button class="icon" id="btn-pause">${ICON.pause}</button>
+        <button class="icon" id="btn-sfx" data-i18n-title="top.sfx">${ICON.bell}</button>
+        <button class="icon" id="btn-menu" data-i18n-title="top.menu">${ICON.menu}</button>
         <div class="menu hidden" id="menu">
-          <button id="btn-abort">Turnier abbrechen</button>
-          <button id="btn-full">Vollbild</button>
+          <button id="btn-abort" data-i18n="top.abort"></button>
+          <button id="btn-full" data-i18n="top.fullscreen"></button>
         </div>
       </div>`;
     $('#btn-invite').onclick = () => {
       navigator.clipboard?.writeText(location.origin).then(
-        () => this.toast('Link kopiert – schick ihn deinen Freunden!'),
+        () => this.toast(t('top.linkCopied')),
         () => this.toast(location.origin),
       );
     };
@@ -173,7 +174,7 @@ export class Hud {
     };
     document.addEventListener('click', () => $('#menu').classList.add('hidden'));
     $('#btn-abort').onclick = () => {
-      if (confirm('Turnier wirklich für alle abbrechen?')) this.send('abort');
+      if (confirm(t('top.abortConfirm'))) this.send('abort');
     };
     $('#btn-full').onclick = () => {
       if (document.fullscreenElement) document.exitFullscreen();
@@ -184,9 +185,9 @@ export class Hud {
     $('#voice').innerHTML = `
       <div class="vhead">
         <button class="mic-btn" id="btn-mic"></button>
-        <button class="icon" id="btn-cam" title="Kamera an/aus"></button>
-        <button class="icon" id="btn-deaf" title="Alle stummschalten (Lautsprecher)"></button>
-        <div class="vtitle">Voice</div>
+        <button class="icon" id="btn-cam" data-i18n-title="voice.cam"></button>
+        <button class="icon" id="btn-deaf" data-i18n-title="voice.deafen"></button>
+        <div class="vtitle" data-i18n="voice.title"></div>
       </div>
       <ul class="vlist"></ul>`;
     $('#btn-mic').onclick = () => this.voice && this.voice.hasMic && this.voice.setMuted(!this.voice.muted);
@@ -194,7 +195,7 @@ export class Hud {
     $('#btn-cam').onclick = async () => {
       if (!this.voice) return;
       await this.voice.setVideo(!this.voice.videoOn);
-      if (!this.voice.videoOn && this.voice.camError) this.toast(this.voice.camError, 'error');
+      if (!this.voice.videoOn && this.voice.camError) this.toast(t(`voice.${this.voice.camError}`), 'error');
     };
     window.addEventListener('keydown', (e) => {
       if (e.target.matches('input, textarea')) return;
@@ -203,9 +204,9 @@ export class Hud {
 
     // Log & Chat
     $('#log').innerHTML = `
-      <button class="log-toggle" id="log-toggle">${ICON.chat}<span>Verlauf</span><b class="badge hidden">0</b></button>
+      <button class="log-toggle" id="log-toggle">${ICON.chat}<span data-i18n="log.title"></span><b class="badge hidden">0</b></button>
       <div class="log-body"><ul class="log-list"></ul>
-      <form class="chat"><input maxlength="200" placeholder="Nachricht…" autocomplete="off"><button>Senden</button></form></div>`;
+      <form class="chat"><input maxlength="200" data-i18n-ph="log.placeholder" autocomplete="off"><button data-i18n="log.send"></button></form></div>`;
     const logEl = $('#log');
     if (localStorage.getItem('pc.logOpen') !== '0' && window.innerWidth > 800) logEl.classList.add('open');
     $('#log-toggle').onclick = () => {
@@ -222,12 +223,26 @@ export class Hud {
     };
     this.unread = 0;
 
-    // Aktionen
+    // Actions
     this.actions = $('#actions');
     window.addEventListener('keydown', (e) => this.#hotkeys(e));
 
     // Lobby
     this.#buildLobby();
+    applyStatic();
+  }
+
+  // Language switched: rebuild generated markup and re-render everything from the last state
+  #relocalize() {
+    this.#buildLobby();
+    for (const p of this.plates) p.el.querySelector('.sit').textContent = t('plate.sit', { n: p.seat + 1 });
+    this.actionKey = null;
+    this.lastLog = 0;
+    this.resultsRendered = false;
+    this.relocalizing = true;
+    if (this.state) this.update(this.state);
+    this.relocalizing = false;
+    this.#renderVoice();
   }
 
   // ------------------------------------------------------------ Lobby
@@ -236,19 +251,19 @@ export class Hud {
     const el = $('#lobby');
     el.innerHTML = `
       <div class="lobby-card">
-        <h1>Neues Turnier</h1>
-        <p class="sub">Gib deinen Namen ein, wähle einen Platz – los geht's, sobald mindestens zwei sitzen.</p>
+        <h1>${t('lobby.title')}</h1>
+        <p class="sub">${t('lobby.sub')}</p>
         <div class="row name-row">
-          <label>Dein Name<input id="in-name" maxlength="16" placeholder="z. B. Alex" autocomplete="nickname"></label>
+          <label>${t('lobby.name')}<input id="in-name" maxlength="16" placeholder="${esc(t('lobby.namePh'))}" autocomplete="nickname"></label>
         </div>
         <div class="seatgrid"></div>
         <div class="gadget-row">
-          <span class="lbl">Dein Gadget <em>– liegt neben dir am Tisch, Klick darauf für eine Animation</em></span>
-          <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${g.label}</span></button>`).join('')}</div>
+          <span class="lbl">${t('lobby.gadget')} <em>${t('lobby.gadgetHint')}</em></span>
+          <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${t(`gadget.${g.id}`)}</span></button>`).join('')}</div>
         </div>
         <div class="struct">
           <div class="struct-head">
-            <h2>Turnierstruktur</h2>
+            <h2>${t('lobby.struct')}</h2>
           </div>
           <div class="row struct-summary">
             <div class="struct-sum"></div>
@@ -257,25 +272,25 @@ export class Hud {
           <div class="struct-editor hidden">
             <div class="presets"></div>
             <div class="row three">
-              <label>Startchips<input id="in-stack" type="number" min="100" step="100"></label>
-              <label>Level-Dauer (Min.)<input id="in-level" type="number" min="1" max="120"></label>
-              <label>Zeit pro Zug (Sek.)<input id="in-action" type="number" min="10" max="300"></label>
+              <label>${t('lobby.stack')}<input id="in-stack" type="number" min="100" step="100"></label>
+              <label>${t('lobby.levelMin')}<input id="in-level" type="number" min="1" max="120"></label>
+              <label>${t('lobby.actionSec')}<input id="in-action" type="number" min="10" max="300"></label>
             </div>
-            <h3>Blindstruktur</h3>
+            <h3>${t('lobby.blinds')}</h3>
             <div class="blinds-wrap">
-              <table class="blinds"><thead><tr><th>Level</th><th>Small Blind</th><th>Big Blind</th><th>Ante</th><th>Beginn</th><th></th></tr></thead><tbody></tbody></table>
+              <table class="blinds"><thead><tr><th>${t('lobby.colLevel')}</th><th>${t('lobby.colSb')}</th><th>${t('lobby.colBb')}</th><th>${t('lobby.colAnte')}</th><th>${t('lobby.colStart')}</th><th></th></tr></thead><tbody></tbody></table>
             </div>
             <div class="row struct-foot">
-              <button class="ghost" id="btn-addlvl">+ Level</button>
-              <button class="ghost" id="btn-reset">Standard</button>
+              <button class="ghost" id="btn-addlvl">${t('lobby.addLevel')}</button>
+              <button class="ghost" id="btn-reset">${t('lobby.reset')}</button>
             </div>
           </div>
           <div class="estimate"></div>
-          <p class="hint readonly-hint">Nur Spieler am Tisch können die Struktur ändern.</p>
+          <p class="hint readonly-hint">${t('lobby.readonly')}</p>
         </div>
         <div class="lobby-foot">
           <div class="who"></div>
-          <button class="primary" id="btn-start">Turnier starten</button>
+          <button class="primary" id="btn-start">${t('lobby.start')}</button>
         </div>
       </div>`;
     const nameIn = $('#in-name');
@@ -296,7 +311,7 @@ export class Hud {
         if (this.state) this.#renderLobby(this.state);
       };
     });
-    $('.presets', el).innerHTML = PRESETS.map((p) => `<button class="chip-btn" data-p="${p.id}">${p.label}</button>`).join('');
+    $('.presets', el).innerHTML = PRESETS.map((p) => `<button class="chip-btn" data-p="${p.id}">${t(`preset.${p.id}`)} (${t('preset.mins', { m: p.minutes })})</button>`).join('');
     el.querySelectorAll('.presets button').forEach((b) => {
       b.onclick = () => {
         const p = PRESETS.find((x) => x.id === b.dataset.p);
@@ -316,8 +331,8 @@ export class Hud {
     };
     $('#btn-reset').onclick = () => this.send('config', defaultConfig());
     $('#btn-start').onclick = () => this.send('start');
-    // Turnier- und Blindstruktur sind standardmäßig eingeklappt
-    this.structOpen = false;
+    // Tournament and blind structure are collapsed by default
+    this.structOpen ??= false;
     $('#btn-struct').onclick = () => {
       this.structOpen = !this.structOpen;
       if (this.state) this.#renderLobby(this.state);
@@ -345,7 +360,7 @@ export class Hud {
     if (!name) {
       $('#lobby').classList.remove('hidden');
       $('#in-name').focus();
-      this.toast('Bitte zuerst deinen Namen eingeben.', 'error');
+      this.toast(t('lobby.nameFirst'), 'error');
       return;
     }
     this.send('sit', { seat, name, gadget: this.gadget });
@@ -361,25 +376,25 @@ export class Hud {
     const canEdit = s.mySeat != null;
     el.classList.toggle('readonly', !canEdit);
 
-    // Sitze
+    // Seats
     $('.seatgrid', el).innerHTML = s.seats
       .map((seat, i) => {
         const mine = s.mySeat === i;
         if (seat)
           return `<div class="seat taken ${mine ? 'mine' : ''} ${seat.connected ? '' : 'offline'}"><span class="no">${i + 1}</span><span class="sn">${esc(seat.name)}${gadgetIcon(seat.gadget)}</span>${
-            mine ? '<button class="ghost small" data-stand>Aufstehen</button>' : seat.connected ? '' : '<em>offline</em>'
+            mine ? `<button class="ghost small" data-stand>${t('lobby.standUp')}</button>` : seat.connected ? '' : `<em>${t('lobby.offline')}</em>`
           }</div>`;
-        return `<button class="seat free" data-seat="${i}"><span class="no">${i + 1}</span><span class="sn">Freier Platz</span><span class="cta">${s.mySeat != null ? 'Wechseln' : 'Hinsetzen'}</span></button>`;
+        return `<button class="seat free" data-seat="${i}"><span class="no">${i + 1}</span><span class="sn">${t('lobby.free')}</span><span class="cta">${t(s.mySeat != null ? 'lobby.switch' : 'lobby.sit')}</span></button>`;
       })
       .join('');
     el.querySelectorAll('[data-seat]').forEach((b) => (b.onclick = () => this.#sitAt(Number(b.dataset.seat))));
     el.querySelector('[data-stand]')?.addEventListener('click', () => this.send('stand'));
 
-    // Gadget: Server-Stand gewinnt, sobald man sitzt
+    // Gadget: the server's value wins once you are seated
     const myGadget = s.mySeat != null ? s.seats[s.mySeat].gadget : this.gadget;
     el.querySelectorAll('.gadget-opt').forEach((b) => b.classList.toggle('active', b.dataset.g === myGadget));
 
-    // Struktur
+    // Structure
     const c = s.config;
     const setVal = (id, v) => {
       const inp = $(id);
@@ -403,28 +418,27 @@ export class Hud {
           <td><input type="number" min="1" data-k="bb" value="${l.bb}" ${canEdit ? '' : 'disabled'}></td>
           <td><input type="number" min="0" data-k="ante" value="${l.ante}" ${canEdit ? '' : 'disabled'}></td>
           <td class="t">${fmtMin(i * c.levelMinutes)}</td>
-          <td>${canEdit && c.levels.length > 1 ? `<button class="del" data-del="${i}" title="Level entfernen">×</button>` : ''}</td></tr>`,
+          <td>${canEdit && c.levels.length > 1 ? `<button class="del" data-del="${i}" title="${t('lobby.removeLevel')}">×</button>` : ''}</td></tr>`,
         )
         .join('');
     }
     $('.struct-editor', el).classList.toggle('hidden', !this.structOpen);
     const toggle = $('#btn-struct');
-    toggle.textContent = this.structOpen ? 'Ausblenden ▴' : canEdit ? 'Bearbeiten ▾' : 'Anzeigen ▾';
+    toggle.textContent = t(this.structOpen ? 'lobby.hide' : canEdit ? 'lobby.edit' : 'lobby.show');
     toggle.setAttribute('aria-expanded', String(this.structOpen));
     const first = c.levels[0];
     const last = c.levels[c.levels.length - 1];
     const preset = PRESETS.find((p) => p.levelMinutes === c.levelMinutes);
     $('.struct-sum', el).innerHTML =
-      `<div><b>${fmt(c.startingStack)} Startchips</b> · ${c.levelMinutes}-Min.-Level${preset ? ` (${preset.label.replace(/\s*\(.*\)/, '')})` : ''} · ${c.actionSeconds} s pro Zug</div>` +
-      `<div>${c.levels.length} Level · Blinds ${fmt(first.sb)}/${fmt(first.bb)} → ${fmt(last.sb)}/${fmt(last.bb)}</div>`;
+      `<div>${t('lobby.sum1', { stack: c.startingStack, min: c.levelMinutes, sec: c.actionSeconds, preset: preset && t(`preset.${preset.id}`) })}</div>` +
+      `<div>${t('lobby.sum2', { levels: c.levels.length, sb1: first.sb, bb1: first.bb, sb2: last.sb, bb2: last.bb })}</div>`;
     $('#btn-addlvl').disabled = !canEdit;
     $('#btn-reset').disabled = !canEdit;
     const n = Math.max(2, seated);
     const est = estimateMinutes(c, n);
     const bbs = Math.round(c.startingStack / c.levels[0].bb);
-    $('.estimate', el).innerHTML = `Voraussichtliche Dauer mit ${n} Spielern: <b>ca. ${fmtMin(est)}</b> · Start mit ${bbs} Big Blinds`;
-    $('.who', el).textContent =
-      seated < 2 ? `${seated} von 5 Plätzen belegt – mindestens 2 nötig` : `${seated} Spieler bereit${s.spectators ? ` · ${s.spectators} Zuschauer` : ''}`;
+    $('.estimate', el).innerHTML = t('lobby.estimate', { n, min: est, bbs });
+    $('.who', el).textContent = seated < 2 ? t('lobby.needMore', { n: seated }) : t('lobby.ready', { n: seated, spec: s.spectators });
     const startBtn = $('#btn-start');
     startBtn.disabled = !(canEdit && seated >= 2);
   }
@@ -433,14 +447,14 @@ export class Hud {
 
   update(s) {
     const prev = this.state;
-    // Einmaliger Hinweis auf den Chip-Riffle, sobald man am Tisch sitzt
+    // One-time hints about the chip riffle and the gadget once you are seated
     if (s.phase === 'running' && s.mySeat != null && !localStorage.getItem('pc.fidgetHint')) {
       localStorage.setItem('pc.fidgetHint', '1');
-      setTimeout(() => this.toast('Tipp: Spiel mit deinen Chips – klick auf deinen Stack oder halt ihn gedrückt und zieh.'), 4000);
+      setTimeout(() => this.toast(t('tip.fidget')), 4000);
     }
     if (s.phase === 'running' && s.mySeat != null && s.seats[s.mySeat]?.gadget && !localStorage.getItem('pc.gadgetHint')) {
       localStorage.setItem('pc.gadgetHint', '1');
-      setTimeout(() => this.toast('Tipp: Klick auf dein Gadget neben dir am Tisch.'), 12000);
+      setTimeout(() => this.toast(t('tip.gadget')), 12000);
     }
     this.state = s;
     this.stateAt = performance.now();
@@ -463,10 +477,10 @@ export class Hud {
     const info = $('#topbar .levelinfo');
     $('#btn-pause').classList.toggle('hidden', s.phase !== 'running' || s.mySeat == null);
     $('#btn-pause').innerHTML = s.paused ? ICON.play : ICON.pause;
-    $('#btn-pause').title = s.paused ? 'Fortsetzen' : 'Pause';
+    $('#btn-pause').title = t(s.paused ? 'top.resume' : 'top.pause');
     $('#btn-abort').disabled = s.phase === 'lobby' || s.mySeat == null;
     if (s.phase === 'lobby') {
-      info.innerHTML = `<span class="lv">Lobby</span><span class="muted">${s.seats.filter(Boolean).length}/5 Spieler</span>`;
+      info.innerHTML = `<span class="lv">${t('top.lobby')}</span><span class="muted">${t('top.players', { n: s.seats.filter(Boolean).length })}</span>`;
       return;
     }
     const l = s.level;
@@ -475,7 +489,7 @@ export class Hud {
       <span class="lv">Level ${l.index + 1}</span>
       <span class="blinds-now">${fmt(l.sb)} / ${fmt(l.bb)}${ante}</span>
       ${s.phase === 'running' ? `<span class="next"><span class="clock" data-clock>${mmss(l.remaining)}</span> <span class="muted">→ ${fmt(l.next.sb)}/${fmt(l.next.bb)}</span></span>` : ''}
-      ${s.paused ? '<span class="paused">PAUSE</span>' : ''}
+      ${s.paused ? `<span class="paused">${t('top.paused')}</span>` : ''}
       ${s.hand ? `<span class="muted hand-no">Hand #${s.hand.id}</span>` : ''}`;
   }
 
@@ -501,7 +515,7 @@ export class Hud {
       $('.nm', el).textContent = seat.name;
       const stack = lobby ? s.config.startingStack : seat.stack;
       $('.stack', el).innerHTML = seat.eliminated
-        ? `Platz ${seat.place}`
+        ? esc(t('plate.place', { n: seat.place }))
         : hp?.allIn
           ? '<span class="allin">ALL-IN</span>'
           : fmt(stack);
@@ -511,27 +525,27 @@ export class Hud {
         if (h.sbSeat === p.seat) tags.push('<b>SB</b>');
         if (h.bbSeat === p.seat) tags.push('<b>BB</b>');
       }
-      if (seat.away) tags.push('<b class="t-away">abwesend</b>');
-      if (!seat.connected) tags.push('<b class="t-away">offline</b>');
+      if (seat.away) tags.push(`<b class="t-away">${t('plate.away')}</b>`);
+      if (!seat.connected) tags.push(`<b class="t-away">${t('plate.offline')}</b>`);
       $('.tag', el).innerHTML = tags.join('');
       const la = hp?.lastAction;
       const act = $('.act', el);
       const winAmt = h?.results?.winnings[p.seat];
       let actText = '';
       if (winAmt) {
-        const hand = h.results.hands?.[p.seat]?.name;
-        actText = `+${fmt(winAmt)}${hand ? ` · ${hand}` : ''}`;
-      } else if (h?.results?.hands?.[p.seat]) actText = h.results.hands[p.seat].name;
+        const hand = h.results.hands?.[p.seat];
+        actText = `+${fmt(winAmt)}${hand ? ` · ${describeHand(hand)}` : ''}`;
+      } else if (h?.results?.hands?.[p.seat]) actText = describeHand(h.results.hands[p.seat]);
       else if (la && !hp.folded) actText = actionLabel(la);
-      else if (hp?.folded) actText = 'Gepasst';
+      else if (hp?.folded) actText = t('plate.folded');
       act.textContent = actText;
       act.className = `act ${winAmt ? 'win' : la ? `a-${la.type}` : ''} ${actText ? 'show' : ''}`;
-      // Mikro-Status
+      // Mic status
       const v = s.voice.find((x) => x.seat === p.seat);
       const mic = $('.mic', el);
       mic.innerHTML = v ? (v.muted ? ICON.micOff : '') : '';
       mic.className = `mic ${v?.muted ? 'muted' : ''}`;
-      // Einsatz-Label
+      // Bet label
       if (hp?.bet > 0) {
         p.bet.textContent = fmt(hp.bet);
         p.bet.classList.remove('hidden');
@@ -540,12 +554,12 @@ export class Hud {
     const pot = h && !h.results ? h.potTotal : 0;
     this.potLabel.classList.toggle('hidden', !pot);
     if (pot) {
-      const side = h.pots.length > 1 ? `<small>${h.pots.map((x, i) => `${i ? 'Side' : 'Main'} ${fmt(x.amount)}`).join(' · ')}</small>` : '';
-      this.potLabel.innerHTML = `<span>Pot</span> ${fmt(pot)}${side}`;
+      const side = h.pots.length > 1 ? `<small>${h.pots.map((x, i) => `${t(i ? 'pot.side' : 'pot.main')} ${fmt(x.amount)}`).join(' · ')}</small>` : '';
+      this.potLabel.innerHTML = `<span>${t('pot.pot')}</span> ${fmt(pot)}${side}`;
     }
   }
 
-  // Position der HTML-Elemente jede Frame nachführen
+  // Keep the HTML elements positioned every frame
   #frame() {
     if (!this.state) return;
     const v = new THREE.Vector3();
@@ -559,12 +573,12 @@ export class Hud {
       const y = Math.min(H - 40, Math.max(70, pt.y));
       p.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
       if (!p.bet.classList.contains('hidden')) {
-        // Eigenes Einsatz-Label neben die Chips, damit es nicht über den eigenen Karten liegt
+        // Own bet label next to the chips so it does not cover your own cards
         const at = this.view.isMe(p.seat) ? A.bet.clone().addScaledVector(A.right, 0.95) : A.bet.clone().addScaledVector(A.normal, 0.55);
         const b = this.stage.project(at, v);
         p.bet.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)`;
       }
-      // Sprechanzeige
+      // Speaking indicator
       const vs = this.state.voice.find((x) => x.seat === p.seat);
       let level = 0;
       if (vs && this.voice) level = this.voice.levels.get(vs.self ? 'self' : vs.id) || 0;
@@ -575,7 +589,7 @@ export class Hud {
       this.rabbitLabel.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)`;
     }
     if (!this.potLabel.classList.contains('hidden')) {
-      // Querformat: über den Pot-Chips; Hochformat: darunter, damit es nicht ins Board ragt
+      // Landscape: above the pot chips; portrait: below them so it does not overlap the board
       const off = isPortrait() ? new THREE.Vector3(-0.35, 0, 0.95) : tableToWorld(0, 0, -1.05);
       const b = this.stage.project(POT_POS().add(off), v);
       this.potLabel.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)`;
@@ -588,7 +602,7 @@ export class Hud {
     const elapsed = performance.now() - this.stateAt;
     const clock = $('[data-clock]');
     if (clock && !s.paused) clock.textContent = mmss(s.level.remaining - elapsed);
-    // Zug-Timer
+    // Turn timer
     const h = s.hand;
     for (const p of this.plates) {
       const c = p.el.querySelector('.timer circle');
@@ -615,7 +629,7 @@ export class Hud {
       bar.style.transform = `scaleX(${frac})`;
       bar.parentElement.classList.toggle('hurry', frac < 0.25);
     }
-    // Voice-Pegel in der Liste
+    // Voice levels in the list
     if (this.voice) {
       document.querySelectorAll('#voice li[data-id]').forEach((li) => {
         const lvl = this.voice.levels.get(li.dataset.self ? 'self' : li.dataset.id) || 0;
@@ -624,14 +638,14 @@ export class Hud {
     }
   }
 
-  // ------------------------------------------------------------ Aktionen
+  // ------------------------------------------------------------ Actions
 
   #renderActions(s, prev) {
     const h = s.hand;
     const el = this.actions;
     const me = s.mySeat;
     const hp = h && me != null ? h.players[me] : null;
-    // Handstärke
+    // Hand strength
     const strength = $('#strength');
     if (hp?.cards && !hp.folded) {
       strength.textContent = describeHole(hp.cards, h.board);
@@ -663,7 +677,7 @@ export class Hud {
       return;
     }
 
-    // Ich bin dran
+    // My turn
     if (this.autoCheckFold) {
       this.autoCheckFold = false;
       this.send('action', { type: legal.canCheck ? 'check' : 'fold' });
@@ -673,12 +687,12 @@ export class Hud {
     if (turnKey !== this.lastTurnKey) {
       this.lastTurnKey = turnKey;
       sfx.turn();
-      if (document.hidden) flashTitle('♠ Du bist dran!');
+      if (document.hidden) flashTitle(t('act.yourTurn'));
     }
 
     const potNow = h.potTotal + Object.values(h.players).reduce((a, p) => a + p.bet, 0);
     const callAll = legal.toCall >= hp.stack;
-    // Muss ich das All-in eines anderen Spielers bezahlen? -> Tequila!
+    // Do I have to call another player's all-in? -> Tequila!
     const facingAllIn = Object.entries(h.players).some(([seat, p]) => Number(seat) !== me && !p.folded && p.allIn && p.bet > hp.bet);
     el.className = 'mine';
     const presets = [
@@ -706,16 +720,16 @@ export class Hud {
           : ''
       }
       <div class="btns">
-        ${legal.canCall ? '<button class="fold" data-a="fold">Passen <kbd>F</kbd></button>' : ''}
+        ${legal.canCall ? `<button class="fold" data-a="fold">${t('act.fold')} <kbd>F</kbd></button>` : ''}
         ${
           legal.canCheck
-            ? '<button class="call" data-a="check">Checken <kbd>C</kbd></button>'
-            : `<button class="call${facingAllIn ? ' vs-allin' : ''}" data-a="call"${facingAllIn ? ` title="All-in callen (${fmt(legal.toCall)})"` : ''}>${facingAllIn ? TEQUILA_SHOT : ''}${facingAllIn ? 'Tequila!' : callAll ? 'All-in' : 'Mitgehen'} ${fmt(legal.toCall)} <kbd>C</kbd></button>`
+            ? `<button class="call" data-a="check">${t('act.check')} <kbd>C</kbd></button>`
+            : `<button class="call${facingAllIn ? ' vs-allin' : ''}" data-a="call"${facingAllIn ? ` title="${esc(t('act.callAllIn', { amount: legal.toCall }))}"` : ''}>${facingAllIn ? TEQUILA_SHOT : ''}${facingAllIn ? t('act.tequila') : callAll ? 'All-in' : t('act.call')} ${fmt(legal.toCall)} <kbd>C</kbd></button>`
         }
         ${
           legal.canRaise
             ? legal.minTo < legal.maxTo
-              ? `<button class="raise" data-a="raise">${legal.isBet ? 'Setzen' : 'Erhöhen auf'} <b class="rv">${fmt(legal.minTo)}</b> <kbd>R</kbd></button>`
+              ? `<button class="raise" data-a="raise">${t(legal.isBet ? 'act.bet' : 'act.raiseTo')} <b class="rv">${fmt(legal.minTo)}</b> <kbd>R</kbd></button>`
               : `<button class="raise" data-a="allin">All-in ${fmt(legal.maxTo)} <kbd>R</kbd></button>`
             : ''
         }
@@ -777,15 +791,13 @@ export class Hud {
     const initial = this.lastLog === 0;
     const fresh = s.log.filter((e) => e.id > this.lastLog);
     this.lastLog = newest;
-    list.innerHTML = s.log
-      .map((e) => `<li class="k-${e.kind}"><time>${new Date(e.t).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</time>${esc(e.text)}</li>`)
-      .join('');
+    list.innerHTML = s.log.map((e) => `<li class="k-${e.kind}"><time>${clock(e.t)}</time>${esc(t(`log.${e.key}`, e.p))}</li>`).join('');
     list.scrollTop = list.scrollHeight;
-    if (!$('#log').classList.contains('open')) {
+    if (!initial && !$('#log').classList.contains('open')) {
       this.unread += fresh.filter((e) => e.kind === 'chat').length;
       this.#renderBadge();
     }
-    if (!initial) for (const e of fresh) if (e.kind === 'level') this.toast(e.text, 'level');
+    if (!initial) for (const e of fresh) if (e.kind === 'level') this.toast(t(`log.${e.key}`, e.p), 'level');
   }
 
   #renderBadge() {
@@ -799,17 +811,17 @@ export class Hud {
     const micBtn = $('#btn-mic');
     const deaf = $('#btn-deaf');
     if (!v) {
-      micBtn.innerHTML = `${ICON.micOff}<span>Voice aus</span>`;
+      micBtn.innerHTML = `${ICON.micOff}<span>${t('voice.off')}</span>`;
       micBtn.className = 'mic-btn off';
       return;
     }
     if (!v.hasMic) {
-      micBtn.innerHTML = `${ICON.micOff}<span>${esc(v.micError || 'Kein Mikro')}</span>`;
+      micBtn.innerHTML = `${ICON.micOff}<span>${esc(t(v.micError ? `voice.${v.micError}` : 'voice.noMic'))}</span>`;
       micBtn.className = 'mic-btn off';
     } else {
-      micBtn.innerHTML = `${v.muted ? ICON.micOff : ICON.mic}<span>${v.muted ? 'Stumm' : 'Mikro an'}</span>`;
+      micBtn.innerHTML = `${v.muted ? ICON.micOff : ICON.mic}<span>${t(v.muted ? 'voice.muted' : 'voice.micOn')}</span>`;
       micBtn.className = `mic-btn ${v.muted ? 'off' : 'on'}`;
-      micBtn.title = 'Mikrofon an/aus (Taste M)';
+      micBtn.title = t('voice.micTitle');
     }
     deaf.innerHTML = v.deafened ? ICON.speakerOff : ICON.speaker;
     deaf.classList.toggle('off', v.deafened);
@@ -823,16 +835,16 @@ export class Hud {
     const list = $('#voice .vlist');
     list.innerHTML = s.voice
       .map((p) => {
-        const name = p.name || 'Zuschauer';
+        const name = p.name || t('spectator');
         const st = p.self ? 'connected' : v.peerState(p.id);
         return `<li data-id="${p.id}" ${p.self ? 'data-self="1"' : ''} class="${p.muted ? 'muted' : ''} st-${st}">
-          <span class="dot"></span><span class="vn">${esc(name)}${p.self ? ' (du)' : ''}</span>
+          <span class="dot"></span><span class="vn">${esc(name)}${p.self ? ` ${t('voice.you')}` : ''}</span>
           ${p.video ? `<span class="vm cam">${ICON.cam}</span>` : ''}<span class="vm">${p.muted ? ICON.micOff : ICON.mic}</span></li>`;
       })
       .join('');
   }
 
-  // Live-Video im runden Avatar des Namensschilds (Kamera ist opt-in)
+  // Live video in the round nameplate avatar (the camera is opt-in)
   #syncVideos() {
     const s = this.state;
     const v = this.voice;
@@ -855,21 +867,20 @@ export class Hud {
     }
   }
 
-  // ------------------------------------------------------------ Ergebnisse
+  // ------------------------------------------------------------ Results
 
-  // All-in-Runout: nächste Straße auf Klick aufdecken (Balken = automatisches Aufdecken)
+  // All-in runout: reveal the next street on click (bar = automatic reveal)
   #renderReveal(s) {
     const rv = s.reveal;
     const show = !!rv && s.mySeat != null;
     const el = $('#reveal');
     el.classList.toggle('hidden', !show);
     if (!show) return;
-    const label = { flop: 'Flop aufdecken', turn: 'Turn aufdecken', river: 'River aufdecken' }[rv.next];
-    $('.rv-label', el).textContent = label;
+    $('.rv-label', el).textContent = t(`reveal.${rv.next}`);
     this.revealDeadline = performance.now() + rv.remaining;
   }
 
-  // Rabbit Cam: 5 Sekunden lang anbieten, danach die angeforderten Karten beschriften
+  // Rabbit Cam: offer it for 5 seconds, then label the requested cards
   #renderRabbit(s) {
     const rb = s.rabbit;
     const offer = !!rb?.open && s.mySeat != null;
@@ -895,9 +906,9 @@ export class Hud {
     const r = h.results;
     const lines = r.pots.map((pot, i) => {
       const names = pot.winners.map((x) => esc(s.seats[x]?.name)).join(' & ');
-      const label = r.pots.length > 1 ? (i === 0 ? 'Main Pot' : `Side Pot ${i}`) : 'Pot';
-      return `<div class="line"><b>${names}</b> ${pot.winners.length > 1 ? 'teilen' : 'gewinnt'} ${label} <span class="amt">${fmt(pot.amount)}</span>${
-        pot.handName ? `<div class="hn">${esc(pot.handName)}</div>` : ''
+      const label = r.pots.length > 1 ? (i === 0 ? t('banner.main') : t('banner.side', { n: i })) : t('banner.pot');
+      return `<div class="line"><b>${names}</b> ${t(pot.winners.length > 1 ? 'banner.split' : 'banner.wins')} ${label} <span class="amt">${fmt(pot.amount)}</span>${
+        pot.hand ? `<div class="hn">${esc(describeHand(pot.hand))}</div>` : ''
       }</div>`;
     });
     el.innerHTML = lines.join('');
@@ -924,13 +935,13 @@ export class Hud {
     el.innerHTML = `
       <div class="results-card">
         <div class="trophy">🏆</div>
-        <h1>${esc(s.results[0]?.name)} gewinnt!</h1>
-        <p class="sub">Turnierdauer ${fmtMin(mins)} · Level ${s.level.index + 1}</p>
+        <h1>${esc(t('results.wins', { name: s.results[0]?.name }))}</h1>
+        <p class="sub">${t('results.duration', { min: mins, level: s.level.index + 1 })}</p>
         <ol>${s.results.map((r) => `<li><span class="pl">${medal[r.place - 1] || `${r.place}.`}</span><span>${esc(r.name)}</span></li>`).join('')}</ol>
-        <button class="primary" id="btn-new">Neues Turnier</button>
+        <button class="primary" id="btn-new">${t('results.again')}</button>
       </div>`;
     $('#btn-new').onclick = () => this.send('newTournament');
-    sfx.win();
+    if (!this.relocalizing) sfx.win();
   }
 
   toast(text, kind = 'info') {
@@ -946,46 +957,21 @@ export class Hud {
   }
 }
 
-// ------------------------------------------------------------ Hilfen
-
-function fmtMin(m) {
-  m = Math.round(m);
-  if (m < 60) return `${m} Min.`;
-  const h = Math.floor(m / 60);
-  const r = m % 60;
-  return r ? `${h} Std. ${r} Min.` : `${h} Std.`;
-}
+// ------------------------------------------------------------ Helpers
 
 function actionLabel(la) {
+  const p = { amount: la.amount };
+  if (la.allIn && ['call', 'bet', 'raise'].includes(la.type)) return t('act.allIn', p);
   switch (la.type) {
-    case 'sb':
-      return `Small Blind ${fmt(la.amount)}`;
-    case 'bb':
-      return `Big Blind ${fmt(la.amount)}`;
-    case 'check':
-      return 'Check';
-    case 'call':
-      return la.allIn ? `All-in ${fmt(la.amount)}` : `Call ${fmt(la.amount)}`;
-    case 'bet':
-      return la.allIn ? `All-in ${fmt(la.amount)}` : `Bet ${fmt(la.amount)}`;
-    case 'raise':
-      return la.allIn ? `All-in ${fmt(la.amount)}` : `Raise ${fmt(la.amount)}`;
-    case 'fold':
-      return 'Gepasst';
-    default:
-      return '';
+    case 'sb': return t('act.sb', p);
+    case 'bb': return t('act.bbl', p);
+    case 'check': return t('act.checked');
+    case 'call': return t('act.called', p);
+    case 'bet': return t('act.betted', p);
+    case 'raise': return t('act.raised', p);
+    case 'fold': return t('plate.folded');
+    default: return '';
   }
-}
-
-const RN = { 14: 'Ass', 13: 'König', 12: 'Dame', 11: 'Bube', 10: 'Zehn', 9: 'Neun', 8: 'Acht', 7: 'Sieben', 6: 'Sechs', 5: 'Fünf', 4: 'Vier', 3: 'Drei', 2: 'Zwei' };
-const RP = { 14: 'Asse', 13: 'Könige', 12: 'Damen', 11: 'Buben', 10: 'Zehnen', 9: 'Neunen', 8: 'Achten', 7: 'Siebenen', 6: 'Sechsen', 5: 'Fünfen', 4: 'Vieren', 3: 'Dreien', 2: 'Zweien' };
-
-function describeHole(cards, board) {
-  if (board.length >= 3) return evaluateBest([...cards, ...board]).name;
-  const [a, b] = cards.map(rankValue).sort((x, y) => y - x);
-  if (a === b) return `Pocket Pair, ${RP[a]}`;
-  const suited = cards[0][1] === cards[1][1];
-  return `${RN[a]}–${RN[b]}${suited ? ' suited' : ''}`;
 }
 
 let flashTimer = null;

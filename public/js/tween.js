@@ -1,4 +1,4 @@
-// Minimaler Tween-Manager (wird in der Render-Schleife aktualisiert).
+// Minimal tween manager (updated from the render loop).
 const active = new Set();
 
 export const ease = {

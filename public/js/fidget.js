@@ -1,25 +1,25 @@
-// Chip-Riffle: mit dem eigenen Stack spielen wie am echten Tisch (rein kosmetisch).
-// Zwei Säulen werden zu einer gestreiften Säule ineinandergeriffelt; eine schon gemischte
-// Säule wird geteilt und wieder zusammengeriffelt. Andere Spieler sehen und hören es (leiser).
+// Chip riffle: play with your own stack like at a real table (purely cosmetic).
+// Two columns are riffled into one striped column; an already mixed column is split and
+// riffled back together. Other players see and hear it (quieter).
 import * as THREE from 'three';
 import { CHIP_H, buildStack } from './chips.js';
 import { rng } from './textures.js';
 import { ease } from './tween.js';
 import { sfx } from './sound.js';
 
-const D = 0.53; // Säulenabstand ≈ Chip-Durchmesser + Luft
-const MAX_MERGE = 24; // größere Säulen werden geteilt statt mit der Nachbarsäule gemischt
-const GATHER = 0.2; // Anteil: Hälften nebeneinander legen
+const D = 0.53; // column spacing ≈ chip diameter + gap
+const MAX_MERGE = 24; // larger columns are split instead of mixed with the neighbour
+const GATHER = 0.2; // share of the progress: placing the halves side by side
 const MAX_TILT = 0.32;
-const DRAG_PX = 130; // Mausweg (px) für einen kompletten Riffle
+const DRAG_PX = 130; // mouse distance (px) for a full riffle
 const UP = new THREE.Vector3(0, 1, 0);
 const _q = new THREE.Quaternion();
 const _qs = new THREE.Quaternion();
 
 const dist2d = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
-// Der Riffle passiert direkt an der Endposition der Säule. Die beiden Hälften liegen links und
-// rechts davon – in der Richtung, in der am meisten Platz zu den anderen Säulen ist.
+// The riffle happens right at the column's final position. The two halves lie left and right
+// of it – in the direction with the most room to the other columns.
 function riffleAxis(piles, home, exclude) {
   const others = piles.filter((p) => !exclude.includes(p));
   let best = null;
@@ -47,7 +47,7 @@ export class Riffle {
       return;
     }
     const r = rng(seed);
-    // Partner: Nachbarsäule mit der ähnlichsten Höhe (deterministisch, bei allen Clients gleich)
+    // Partner: neighbouring column with the most similar height (deterministic, same on all clients)
     const cands = [pileIndex + 1, pileIndex - 1].filter((i) => piles[i]?.chips.length);
     cands.sort((x, y) => Math.abs(piles[x].chips.length - P.chips.length) - Math.abs(piles[y].chips.length - P.chips.length));
     const N = piles[cands[0]];
@@ -72,18 +72,18 @@ export class Riffle {
     this.c = home;
     this.perp = riffleAxis(piles, home, this.N ? [P, this.N] : [P]);
 
-    // Startlage jedes Chips merken
+    // Remember each chip's starting position
     for (const chip of [...this.a, ...this.b]) {
       chip.userData.start = chip.position.clone();
       if (chip.userData.spin == null) chip.userData.spin = chip.rotation.y;
     }
 
-    // Mischreihenfolge von unten nach oben: abwechselnd, gelegentlich zwei aus derselben Hälfte
+    // Mixing order from bottom to top: alternating, occasionally two from the same half
     const order = [];
     let ia = 0;
     let ib = 0;
-    // Die Hälften werden anteilig verteilt, damit auch ungleiche Hälften schön gestreift werden;
-    // ein wenig Zufall sorgt für gelegentliche Doppel wie beim echten Riffle.
+    // The halves are interleaved proportionally so uneven halves still end up nicely striped;
+    // a little randomness adds the occasional double like in a real riffle.
     const na = this.a.length;
     const nb = this.b.length;
     const bias = (r() - 0.5) * 0.5;
@@ -105,7 +105,7 @@ export class Riffle {
     }));
   }
 
-  // Fortschritt 0..1 setzen (nur vorwärts) und alle Chips positionieren
+  // Set progress 0..1 (forward only) and position all chips
   setProgress(p) {
     if (this.invalid || this.done) return;
     p = Math.max(this.p, Math.min(1, p));
@@ -113,25 +113,25 @@ export class Riffle {
     const g = ease.inOutCubic(Math.min(1, p / GATHER));
     const m = p <= GATHER ? 0 : Math.min(1, (p - GATHER) / (1 - GATHER));
 
-    // Wo stehen die beiden Hälften gerade? Beim Riffeln rücken sie zusammen.
+    // Where are the two halves right now? They move together while riffling.
     const approach = (D / 2 - 0.2) * ease.outCubic(Math.min(1, m * 1.5));
     const aSlot = this.c.clone().addScaledVector(this.perp, -(D / 2 - approach));
     const bSlot = this.c.clone().addScaledVector(this.perp, D / 2 - approach);
     const tilt = Math.sin(m * Math.PI) * MAX_TILT;
     const target = this.c;
 
-    // Wie viele Chips jeder Hälfte sind schon gefallen?
+    // How many chips of each half have dropped already?
     const dropped = { a: 0, b: 0 };
     for (const o of this.order) if (m >= o.t + 0.05) dropped[o.half]++;
 
     for (const o of this.order) {
       const chip = o.chip;
       const slot = o.half === 'a' ? aSlot : bSlot;
-      // Lage in der eigenen Hälfte (rutscht nach, wenn untere Chips wegfallen)
+      // Position within its own half (slides down as lower chips drop away)
       const inHalfY = CHIP_H / 2 + (o.idx - (m > 0 ? dropped[o.half] : 0)) * CHIP_H;
       const halfPos = new THREE.Vector3(slot.x, Math.max(CHIP_H / 2, inHalfY), slot.z);
       if (m === 0) {
-        // Phase 1: nebeneinanderlegen (abgehobene Hälfte im Bogen)
+        // Phase 1: place side by side (the lifted half moves in an arc)
         const start = chip.userData.start;
         chip.position.lerpVectors(start, halfPos, g);
         if (this.split && o.half === 'b') chip.position.y += Math.sin(g * Math.PI) * 0.35;
@@ -145,7 +145,7 @@ export class Riffle {
         }
         if (o.landed) chip.position.set(target.x + o.jx, CHIP_H / 2 + o.j * CHIP_H, target.z + o.jz);
       }
-      // Innenkanten der Hälften anheben; gefallene Chips liegen flach
+      // Lift the inner edges of the halves; dropped chips lie flat
       const inHalf = !o.landed;
       const toCenter = o.half === 'a' ? this.perp : this.perp.clone().negate();
       const axis = new THREE.Vector3().crossVectors(toCenter, UP).normalize();
@@ -157,7 +157,7 @@ export class Riffle {
     if (p >= 1) this.#commit();
   }
 
-  // Säulen-Buchhaltung aktualisieren: eine gemischte Säule an der alten Stelle
+  // Update the column bookkeeping: one mixed column at the old spot
   #commit() {
     this.done = true;
     this.P.chips = this.order.map((o) => o.chip);
@@ -171,8 +171,8 @@ export class Riffle {
   }
 }
 
-// Alle Chips eines Stacks zurück in ihre ursprünglichen Säulen (nach Wert) – animiert.
-// Rückgabe: Promise-freie Animation über onFrame; liefert false, wenn nichts zu sortieren ist.
+// Moves all chips of a stack back into their original columns (by value) – animated.
+// Driven by update() from the frame loop; `invalid` is set when there is nothing to sort.
 export class Sort {
   constructor(group, volume = 1) {
     this.done = false;
@@ -181,9 +181,9 @@ export class Sort {
       this.invalid = true;
       return;
     }
-    // Referenz-Layout exakt wie beim ursprünglichen Aufbau
+    // Reference layout exactly like the original build
     const ref = buildStack(b.amount, b.opts);
-    const pool = new Map(); // Material (= Wert) -> vorhandene Chips, von unten nach oben
+    const pool = new Map(); // material (= value) -> existing chips, bottom to top
     for (const chip of group.children) {
       if (!pool.has(chip.material)) pool.set(chip.material, []);
       pool.get(chip.material).push(chip);
@@ -230,7 +230,7 @@ export class Sort {
   }
 }
 
-// Eingabe (eigener Stack) + Wiedergabe (Stacks der anderen)
+// Input (own stack) + playback (other players' stacks)
 export class ChipFidget {
   constructor({ stage, view, send, socket }) {
     this.stage = stage;
@@ -303,7 +303,7 @@ export class ChipFidget {
 
   #down(e) {
     if (e.button === 2) {
-      // Rechtsklick auf den eigenen Stack: gemischte Säulen wieder nach Wert sortieren
+      // Right-click on your own stack: sort mixed columns back by value
       const hit = this.#pick(e);
       if (hit && this.#sort(this.view.mySeat, hit.group, 1)) this.send('fidget', { type: 'sort' });
       return;
@@ -339,7 +339,7 @@ export class ChipFidget {
       }
       return;
     }
-    // Hover: Hand-Cursor über dem eigenen Stack
+    // Hover: hand cursor over your own stack
     const now = performance.now();
     if (now - this.lastHover < 60) return;
     this.lastHover = now;
@@ -355,7 +355,7 @@ export class ChipFidget {
     this.el.style.cursor = 'grab';
     const r = entry.riffle;
     if (r.done) return;
-    // Kurzer Klick: schneller automatischer Riffle; sonst Rest zügig abschließen
+    // Short click: quick automatic riffle; otherwise finish the rest briskly
     const dur = moved < 8 && performance.now() - t < 400 ? 0.8 : 0.35;
     entry.auto = (1 - r.p) / dur;
     this.send('fidget', { type: 'auto', p: r.p, dur });
@@ -389,7 +389,7 @@ export class ChipFidget {
     const dt = Math.min(0.1, (now - this.lastT) / 1000);
     this.lastT = now;
     for (const [seat, e] of this.active) {
-      // Stack wurde inzwischen neu aufgebaut (Betrag geändert) -> verwerfen
+      // The stack was rebuilt in the meantime (amount changed) -> discard
       if (this.view.seats[seat]?.stack !== e.group) {
         this.active.delete(seat);
         continue;

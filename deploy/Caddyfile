@@ -1,5 +1,5 @@
-# Caddy holt automatisch ein kostenloses HTTPS-Zertifikat (Let's Encrypt) für DOMAIN.
-# HTTPS ist Pflicht: Browser geben das Mikrofon nur auf sicheren Seiten frei.
+# Caddy automatically fetches a free HTTPS certificate (Let's Encrypt) for DOMAIN.
+# HTTPS is required: browsers only allow microphone access on secure pages.
 {$DOMAIN} {
 	encode gzip zstd
 	reverse_proxy app:3000

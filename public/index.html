@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -26,23 +26,26 @@
     <div id="banner"></div>
     <div id="reveal" class="hidden"><button><span class="rv-label"></span><i class="bar"></i></button></div>
     <div id="rabbit" class="hidden"><button><span class="bunny">🐇</span> Rabbit Cam<i class="bar"></i></button></div>
-    <div id="away" class="hidden"><div>Du wurdest als <b>abwesend</b> markiert – es wird automatisch gecheckt oder gepasst.</div><button class="primary">Ich bin zurück</button></div>
+    <div id="away" class="hidden"><div data-i18n-html="away.text"></div><button class="primary" data-i18n="away.back"></button></div>
     <div id="lobby" class="hidden"></div>
     <div id="results" class="hidden"></div>
     <div id="toasts"></div>
-    <div id="offline">Verbindung verloren – verbinde neu…</div>
+    <div id="offline" data-i18n="offline"></div>
 
     <div id="splash">
       <div class="splash-card">
+        <div class="lang-pick" role="group"><button type="button" data-lang="de">DE</button><button type="button" data-lang="en">EN</button></div>
         <div class="suits"><span>♠</span><span class="r">♥</span><span>♣</span><span class="r">♦</span></div>
         <h1>PokerCrew</h1>
-        <p>No-Limit Texas Hold'em mit deinen Freunden – inklusive Voicechat.</p>
-        <button id="btn-enter" class="primary big">An den Tisch</button>
-        <p class="fine">Beim Betreten wirst du automatisch mit dem Voicechat verbunden. Dein Browser fragt nach dem Mikrofon – stummschalten kannst du jederzeit (Taste <kbd>M</kbd>).</p>
+        <p data-i18n="splash.tagline"></p>
+        <button id="btn-enter" class="primary big" data-i18n="splash.enter"></button>
+        <p class="fine" data-i18n-html="splash.fine"></p>
       </div>
     </div>
 
     <script src="/socket.io/socket.io.min.js"></script>
+    <!-- small module first: translates the splash while three.js is still loading -->
+    <script type="module" src="/js/i18n.js"></script>
     <script type="module" src="/js/main.js"></script>
   </body>
 </html>

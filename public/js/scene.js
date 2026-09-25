@@ -1,4 +1,4 @@
-// Szene, Tisch, Licht, Kamera.
+// Scene, table, lights, camera.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
@@ -8,7 +8,7 @@ import {
 import { updateTweens, tween, ease } from './tween.js';
 
 export const SEATS = 5;
-// Winkel der Anzeigepositionen (0 = unten/eigener Platz, im Uhrzeigersinn)
+// Angles of the display positions (0 = bottom/own seat, clockwise)
 const SEAT_ANGLES = [0, 80, 146, 214, 280].map((d) => (d * Math.PI) / 180);
 const SEAT_ANGLES_PORTRAIT = [0, 58, 152, 208, 302].map((d) => (d * Math.PI) / 180);
 
@@ -32,11 +32,11 @@ function stadiumShape(a, r, holeOf = null) {
   return s;
 }
 
-// Hochformat: Tisch um 90° gedreht, Längsachse zeigt zum eigenen Platz
+// Portrait: table rotated by 90°, its long axis points towards your own seat
 let portrait = false;
 export const isPortrait = () => portrait;
 
-// Punkt auf dem Filzrand in Richtung (dx, dz) + Normale – in Tisch-Koordinaten
+// Point on the felt edge in direction (dx, dz) + normal – in table coordinates
 function stadiumPoint(dx, dz, r = TABLE.r) {
   const a = TABLE.a;
   let lo = 0;
@@ -57,15 +57,15 @@ function stadiumPoint(dx, dz, r = TABLE.r) {
   return { p: new THREE.Vector3(x, 0, z), n: new THREE.Vector3(n.x, 0, n.y) };
 }
 
-// Dasselbe in Weltkoordinaten (Tischgruppe ist im Hochformat um +90° um Y gedreht:
-// lokal (x, z) -> Welt (z, -x))
+// Same in world coordinates (in portrait the table group is rotated by +90° around Y:
+// local (x, z) -> world (z, -x))
 function worldStadiumPoint(dx, dz) {
   if (!portrait) return stadiumPoint(dx, dz);
   const { p, n } = stadiumPoint(-dz, dx);
   return { p: new THREE.Vector3(p.z, 0, -p.x), n: new THREE.Vector3(n.z, 0, -n.x) };
 }
 
-// Punkt so weit zur Tischmitte schieben, dass er mindestens `margin` Abstand zur Filzkante hat
+// Push a point towards the table centre until it is at least `margin` away from the felt edge
 function clampToFelt(v, margin) {
   let x = portrait ? -v.z : v.x;
   let z = portrait ? v.x : v.z;
@@ -79,14 +79,14 @@ function clampToFelt(v, margin) {
   return portrait ? new THREE.Vector3(z, v.y, -x) : new THREE.Vector3(x, v.y, z);
 }
 
-// me: eigener Platz (angehobene Karten direkt an der Bande). Zuschauer sehen Platz 0 im
-// normalen Layout, damit flach liegende Karten nicht über die Bande ragen.
+// me: own seat (raised cards right at the rail). Spectators see seat 0 in the normal
+// layout so cards lying flat do not stick out over the rail.
 export function seatAnchors(pos, me = pos === 0) {
   const ang = (portrait ? SEAT_ANGLES_PORTRAIT : SEAT_ANGLES)[pos];
   const { p, n } = worldStadiumPoint(-Math.sin(ang), Math.cos(ang));
-  const right = new THREE.Vector3(n.z, 0, -n.x); // rechts aus Sicht des Spielers
+  const right = new THREE.Vector3(n.z, 0, -n.x); // right from the player's point of view
   const raw = (inset, side = 0, y = 0) => p.clone().addScaledVector(n, -inset).addScaledVector(right, side).setY(y);
-  // An den Tischrundungen würde ein seitlicher Versatz sonst auf die Holzkante wandern
+  // At the rounded ends a sideways offset would otherwise drift onto the wooden edge
   const at = (inset, side, y, margin) => clampToFelt(raw(inset, side, y), margin);
   const yaw = Math.atan2(n.x, n.z);
   return {
@@ -94,7 +94,7 @@ export function seatAnchors(pos, me = pos === 0) {
     normal: n,
     right,
     edge: p,
-    cards: me ? raw(0.3, 0) : at(1.4, 0, 0, 0.8), // eigener Platz: Unterkante der Karten
+    cards: me ? raw(0.3, 0) : at(1.4, 0, 0, 0.8), // own seat: bottom edge of the cards
     stack: me ? raw(0.95, portrait ? 1.8 : 2.1) : at(1.0, 1.75, 0, 1.0),
     bet: me ? raw(2.9, 0) : at(3.0, 0.2, 0, 1.2),
     button: me ? raw(1.2, portrait ? -1.7 : -1.9) : at(1.9, -1.45, 0, 0.55),
@@ -103,8 +103,8 @@ export function seatAnchors(pos, me = pos === 0) {
   };
 }
 
-// Umlaufparameter (Bogenlänge ab Mitte der unteren Längsseite, gegen den Uhrzeigersinn von
-// oben gesehen = nach links aus Sicht von Platz 0) auf einer Stadion-Kurve mit Radius R.
+// Perimeter parameter (arc length from the middle of the bottom long side, counter-clockwise
+// seen from above = to the left from seat 0's point of view) on a stadium curve with radius R.
 function perimeterParam(x, z, R) {
   const a = TABLE.a;
   if (x < -a) {
@@ -132,7 +132,7 @@ function perimeterAt(s, R) {
   return { x: a - s, z: R, nx: 0, nz: 1 };
 }
 
-// Ablage für das Gadget: auf der Holzbahn, `along` Einheiten links neben dem Platz
+// Spot for the gadget: on the wooden racetrack, `along` units left of the seat
 export function gadgetAnchor(pos, along) {
   const ang = (portrait ? SEAT_ANGLES_PORTRAIT : SEAT_ANGLES)[pos];
   let dx = -Math.sin(ang);
@@ -145,8 +145,8 @@ export function gadgetAnchor(pos, along) {
   return { pos: tableToWorld(q.x, 0.065, q.z), yaw: Math.atan2(n.x, n.z) };
 }
 
-// Tischfeste Punkte (Board, Pot, Deck) sind in Tisch-Koordinaten definiert und drehen im
-// Hochformat mit dem Tisch mit – wie an einem echten Tisch, den man von der Stirnseite sieht.
+// Table-fixed points (board, pot, deck) are defined in table coordinates and rotate with the
+// table in portrait – like a real table seen from its short end.
 export const tableYaw = () => (portrait ? Math.PI / 2 : 0);
 export function tableToWorld(x, y, z) {
   return portrait ? new THREE.Vector3(z, y, -x) : new THREE.Vector3(x, y, z);
@@ -214,12 +214,12 @@ export class Stage {
     spot.shadow.radius = 3;
     s.add(spot, spot.target);
     this.spot = spot;
-    // weiches Fülllicht von der Spielerseite
+    // soft fill light from the player's side
     const fill = new THREE.DirectionalLight(0xdfe8ff, 0.55);
     this.fill = fill;
     fill.position.set(-4, 10, 16);
     s.add(fill);
-    // Randlicht von hinten für die Bande
+    // rim light from behind for the rail
     const rim = new THREE.DirectionalLight(0xffc98a, 0.5);
     this.rim = rim;
     rim.position.set(6, 6, -14);
@@ -231,7 +231,7 @@ export class Stage {
     const g = new THREE.Group();
     this.table = g;
 
-    // Filz
+    // Felt
     const feltGeo = new THREE.ShapeGeometry(stadiumShape(a, r), 48);
     const pos = feltGeo.attributes.position;
     const uv = feltGeo.attributes.uv;
@@ -249,7 +249,7 @@ export class Stage {
     felt.receiveShadow = true;
     g.add(felt);
 
-    // Holz-Racetrack
+    // Wooden racetrack
     const wood = woodTexture();
     const woodMat = new THREE.MeshPhysicalMaterial({
       map: wood,
@@ -273,7 +273,7 @@ export class Stage {
     raceM.castShadow = true;
     g.add(raceM);
 
-    // Messing-Einlage an der Filzkante
+    // Brass inlay at the felt edge
     const brassGeo = new THREE.ExtrudeGeometry(stadiumShape(a, r + 0.06, [a, r + 0.012]), {
       depth: 0.02,
       bevelEnabled: false,
@@ -287,7 +287,7 @@ export class Stage {
     brass.position.y = 0.055;
     g.add(brass);
 
-    // Gepolsterte Lederbande
+    // Padded leather rail
     const bev = 0.34;
     const inner = r + race;
     const outer = r + race + rail;
@@ -318,7 +318,7 @@ export class Stage {
     railM.receiveShadow = true;
     g.add(railM);
 
-    // Ziernaht auf der Bande
+    // Decorative seam on the rail
     const seamPts = [];
     const seamR = inner + rail * 0.5;
     const seg = 180;
@@ -334,14 +334,14 @@ export class Stage {
     seam.position.y = 0.06 + 0.18 + 0.24 + 0.004;
     g.add(seam);
 
-    // Zarge unter der Bande
+    // Apron below the rail
     const apronGeo = new THREE.ExtrudeGeometry(stadiumShape(a, outer - 0.12), { depth: 1.1, bevelEnabled: false, curveSegments: 64 });
     apronGeo.rotateX(-Math.PI / 2);
     const apron = new THREE.Mesh(apronGeo, new THREE.MeshPhysicalMaterial({ map: wood, color: 0x5a3b2c, roughness: 0.45, clearcoat: 0.6 }));
     apron.position.y = -1.2;
     g.add(apron);
 
-    // Tischfuß
+    // Table base
     const foot = new THREE.Mesh(
       new THREE.CylinderGeometry(2.2, 3.2, 3.2, 48),
       new THREE.MeshStandardMaterial({ color: 0x120c0a, roughness: 0.6 }),
@@ -377,7 +377,7 @@ export class Stage {
   }
 
   #turnRing() {
-    // weicher, goldener Lichtkranz als Canvas-Textur
+    // soft golden halo as a canvas texture
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d');
@@ -414,7 +414,7 @@ export class Stage {
       this.table.rotation.y = tableYaw();
       this.onLayout?.();
     }
-    // Sichtbarer Bereich (Tisch + Namensschilder) muss hineinpassen
+    // The visible area (table + nameplates) has to fit
     const fovV = THREE.MathUtils.degToRad(this.camera.fov);
     const needW = portrait ? 14.2 : 21.5;
     const needH = portrait ? 19.5 : 14.5;
@@ -432,10 +432,10 @@ export class Stage {
     this.timer.update();
     const t = this.timer.getElapsed();
     updateTweens();
-    // Beim Chip-Riffle soll die Kamera nicht mit der Maus mitschwenken
+    // While riffling chips the camera should not follow the mouse
     if (!this.freezeParallax) this.smoothMouse.lerp(this.mouse, 0.04);
-    // Kamera: leicht geneigte Draufsicht, dezenter Parallax, im Leerlauf sanftes Schweben
-    // Drama-Fokus (theatralischer River): Kamera fährt näher und flacher an einen Punkt heran
+    // Camera: slightly tilted top view, subtle parallax, gentle sway when idle
+    // Drama focus (dramatic river): the camera moves closer and lower towards a point
     const f = ease.inOutCubic(this.focusK || 0);
     const elev = this.elevation - f * 0.13;
     const d = this.baseDist * (1 - f * 0.42);
@@ -445,7 +445,7 @@ export class Stage {
     const pitchOff = this.smoothMouse.y * 0.025;
     const e = elev + pitchOff;
     if (this.debugCam) {
-      // nur für Entwicklung (?debug): feste Kamera für Nahaufnahmen
+      // development only (?debug): fixed camera for close-ups
       this.camera.position.copy(this.debugCam.pos);
       this.camera.lookAt(this.debugCam.target);
     } else {
@@ -464,7 +464,7 @@ export class Stage {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // Theatralischer Moment: Kamera auf einen Punkt, Umgebungslicht gedimmt
+  // Dramatic moment: camera on one point, ambient light dimmed
   drama(on, point) {
     if (point) this.focusPoint = point.clone();
     if (!this.focusPoint) return Promise.resolve();

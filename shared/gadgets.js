@@ -1,9 +1,10 @@
-// Gadgets: rein kosmetische Tisch-Accessoires, die jeder Spieler vor dem Turnier wählt.
+// Gadgets: purely cosmetic table accessories every player picks before the tournament.
+// Labels live in the client translations (gadget.<id>).
 export const GADGETS = [
-  { id: 'cigar', label: 'Zigarre', icon: '🚬' },
-  { id: 'vape', label: 'Vape', icon: '💨' },
-  { id: 'cocktail', label: 'Cocktail', icon: '🍸' },
-  { id: 'whiskey', label: 'Whiskey', icon: '🥃' },
+  { id: 'cigar', icon: '🚬' },
+  { id: 'vape', icon: '💨' },
+  { id: 'cocktail', icon: '🍸' },
+  { id: 'whiskey', icon: '🥃' },
 ];
 
 export const isGadget = (id) => GADGETS.some((g) => g.id === id);

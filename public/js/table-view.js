@@ -1,4 +1,4 @@
-// Übersetzt Spielzustände in animierte 3D-Objekte.
+// Turns game states into animated 3D objects.
 import * as THREE from 'three';
 import { createCard, cardQuat, CARD_H } from './cards.js';
 import { buildStack } from './chips.js';
@@ -23,13 +23,13 @@ export class TableView {
     this.queue = Promise.resolve();
     this.pending = 0;
     this.first = true;
-    // Im Hintergrund (Tab nicht sichtbar) laufen keine Frames – Animationen sofort abschließen
+    // In the background (tab hidden) no frames run – finish animations immediately
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) finishAllTweens();
     });
   }
 
-  // ---------- Geometrie ----------
+  // ---------- Geometry ----------
 
   displayPos(seat) {
     return (seat - (this.mySeat ?? 0) + SEATS) % SEATS;
@@ -47,9 +47,9 @@ export class TableView {
     const A = this.anchors(seat);
     const me = this.isMe(seat);
     if (me) {
-      // Wie echte, angehobene Karten: Unterkante liegt auf dem Filz, die Karte ist
-      // um diese Kante zur Kamera hin gekippt (dreht sich also nicht in den Tisch).
-      const scale = 1.05; // nur etwas größer als das Board (1.0), passend zu den anderen Karten
+      // Like real, lifted cards: the bottom edge rests on the felt and the card is
+      // tilted around that edge towards the camera (so it never rotates into the table).
+      const scale = 1.05; // only slightly larger than the board (1.0), matching the other cards
       const tilt = faceUp ? 0.62 : 0;
       const h = CARD_H * scale;
       const inward = A.normal.clone().negate();
@@ -64,7 +64,7 @@ export class TableView {
       return { pos, quat: cardQuat(A.yaw - (i - 0.5) * 0.08, faceUp, tilt), scale };
     }
     if (revealed) {
-      // Offen gelegte Karten zeigen zum Betrachter, damit sie lesbar sind
+      // Revealed cards face the viewer so they are readable
       const toward = A.cards.clone().addScaledVector(A.normal, -0.45);
       return {
         pos: toward.addScaledVector(new THREE.Vector3(1, 0, 0), (i - 0.5) * 0.98).setY(0.03 + i * 0.035),
@@ -79,9 +79,9 @@ export class TableView {
     };
   }
 
-  // ---------- Öffentliche API ----------
+  // ---------- Public API ----------
 
-  // Nach Wechsel Hoch-/Querformat alles neu aufbauen
+  // Rebuild everything after switching between portrait and landscape
   relayout() {
     if (!this.lastState) return;
     this.queue = this.queue.then(() => {
@@ -140,7 +140,7 @@ export class TableView {
     }
   }
 
-  // ---------- Hände ----------
+  // ---------- Hands ----------
 
   async #newHand(state) {
     const h = state.hand;
@@ -155,7 +155,7 @@ export class TableView {
     await this.#moveButton(h.buttonSeat);
     this.#syncStacks(state);
 
-    // Reihenfolge: links vom Button beginnend
+    // Order: starting left of the button
     const inHand = Object.keys(h.players).map(Number).sort((a, b) => a - b);
     const after = inHand.filter((s) => s > h.buttonSeat);
     const order = [...after, ...inHand.filter((s) => s <= h.buttonSeat)];
@@ -177,7 +177,7 @@ export class TableView {
       }
     }
     await Promise.all(jobs);
-    // eigene Karten aufdecken
+    // turn your own cards face up
     if (this.mySeat != null && h.players[this.mySeat]?.cards) {
       const mine = h.players[this.mySeat].cards;
       await Promise.all(
@@ -215,7 +215,7 @@ export class TableView {
 
   async #syncBets(state) {
     const h = state.hand;
-    // Einsätze, die auf 0 fallen, wandern in den Pot
+    // Bets that drop to 0 move into the pot
     const collect = [];
     for (let seat = 0; seat < SEATS; seat++) {
       const s = this.seats[seat];
@@ -246,7 +246,7 @@ export class TableView {
     // Pot
     const potTarget = this.resultsShown ? 0 : h.potTotal;
     this.#setPot(potTarget);
-    // Neue/geänderte Einsätze
+    // New/changed bets
     const jobs = [];
     for (let seat = 0; seat < SEATS; seat++) {
       const s = this.seats[seat];
@@ -280,12 +280,12 @@ export class TableView {
     await Promise.all(jobs);
   }
 
-  // Entscheidender River: Kamerafahrt, gedimmtes Licht, Herzschlag, langsamer Squeeze
+  // Deciding river: camera move, dimmed light, heartbeat, slow squeeze
   async #dramaticRiver(card, slot) {
     const down = cardQuat(tableYaw(), false);
     const up = cardQuat(tableYaw(), true);
     sfx.card();
-    // Fokus auf die Board-Mitte mit leichtem Zug zum River, damit das ganze Board im Bild bleibt
+    // Focus on the board centre, pulled slightly towards the river so the whole board stays in view
     const focus = BOARD_POS(2).lerp(slot, 0.3);
     await Promise.all([this.stage.drama(true, focus), this.#fly(card, slot.clone().setY(0.02), down, 1, { duration: 750, arc: 0.5 })]);
     let beating = true;
@@ -295,11 +295,11 @@ export class TableView {
         await wait(820);
       }
     })();
-    // Kante ganz langsam anheben ...
+    // lift the edge very slowly ...
     const peek = new THREE.Quaternion().slerpQuaternions(down, up, 0.14);
     await this.#fly(card, slot.clone().setY(0.28), peek, 1, { duration: 1700, arc: 0 });
     await wait(550);
-    // ... dann umdrehen
+    // ... then flip it
     await this.#fly(card, slot.clone().setY(0.14), up, 1, { duration: 1300, arc: 0.12 });
     beating = false;
     sfx.flip();
@@ -338,7 +338,7 @@ export class TableView {
     await Promise.all(jobs);
   }
 
-  // Rabbit Cam: die Karten, die gekommen wären – bläulich getönt, damit klar ist, dass sie nicht zählen
+  // Rabbit Cam: the cards that would have come – tinted blue to make clear they do not count
   async #syncRabbit(state) {
     const rb = state.rabbit;
     if (!rb?.cards || this.rabbitHand === state.hand.id) return;
@@ -384,7 +384,7 @@ export class TableView {
     const r = h.results;
     this.resultsShown = true;
     this.stage.turnRing.visible = false;
-    // Gewinnerkarten hervorheben
+    // Highlight the winning cards
     if (!r.uncontested && r.pots.length) {
       const mainWinners = r.pots[0].winners;
       const best = new Set(mainWinners.flatMap((s) => r.hands[s]?.cards || []));
@@ -400,7 +400,7 @@ export class TableView {
       }
       await wait(1100);
     }
-    // Pot zu den Gewinnern schieben
+    // Push the pot to the winners
     if (this.pot) {
       this.scene.remove(this.pot);
       this.pot = null;
@@ -430,7 +430,7 @@ export class TableView {
     sfx.win();
     setTimeout(() => sfx.chips(8), 500);
     await Promise.all(jobs);
-    // Stacks sofort mit Gewinn aktualisieren
+    // Update the stacks with the winnings right away
     this.#syncStacks(state, true);
   }
 
@@ -443,7 +443,7 @@ export class TableView {
       let amount = 0;
       if (info && !info.eliminated) {
         amount = state.phase === 'lobby' ? state.config.startingStack : info.stack;
-        // Solange die Pot-Animation noch aussteht, alten Stack zeigen
+        // Show the old stack while the pot animation is still pending
         if (!force && state.hand?.results && !this.resultsShown && state.hand.results.winnings[seat]) {
           amount -= state.hand.results.winnings[seat];
         }
@@ -454,7 +454,7 @@ export class TableView {
       s.stackAmt = amount;
       if (amount <= 0) continue;
       const A = this.anchors(seat);
-      // Mitspieler: kompakter Stack (3 Säulen pro Reihe), damit er nicht unter die Karten ragt
+      // Other players: compact stack (3 columns per row) so it does not reach under the cards
       const g = buildStack(amount, { seed: seat + 1, layout: 'row', perRow: this.isMe(seat) ? 5 : 3, maxChips: 90, pretty: true });
       g.position.copy(A.stack);
       g.rotation.y = A.yaw;
@@ -484,7 +484,7 @@ export class TableView {
     }
   }
 
-  // ---------- Button & Zugmarkierung ----------
+  // ---------- Dealer button & turn marker ----------
 
   async #moveButton(seat) {
     const b = this.stage.dealerButton;
@@ -532,7 +532,7 @@ export class TableView {
     }
   }
 
-  // ---------- Karten-Helfer ----------
+  // ---------- Card helpers ----------
 
   #fly(obj, toPos, toQuat, toScale = 1, { duration = 400, delay = 0, arc = 0.5 } = {}) {
     let fromPos;

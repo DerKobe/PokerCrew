@@ -1,5 +1,5 @@
-// Gadgets: kleine Accessoires neben jedem Platz (rein kosmetisch). Klick aufs eigene Gadget
-// spielt eine Animation ab, die alle am Tisch sehen und (leiser) hören.
+// Gadgets: small accessories next to each seat (purely cosmetic). Clicking your own gadget
+// plays an animation that everyone at the table sees and (more quietly) hears.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { gadgetAnchor, SEATS } from './scene.js';
@@ -12,12 +12,12 @@ const UP = new THREE.Vector3(0, 1, 0);
 const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
 const REMOTE_VOLUME = 0.45;
-const GADGET_SCALE = 1.2; // etwas größer als maßstabsgetreu, damit man es aus der Tischansicht erkennt
+const GADGET_SCALE = 1.2; // a bit larger than true to scale so it is recognisable from the table view
 
-// Render-Reihenfolge der durchsichtigen Teile: Eis -> Flüssigkeit -> Glas -> Rauch
+// Render order of the transparent parts: ice -> liquid -> glass -> smoke
 const ORDER = { ice: 2, liquid: 3, glass: 5, smoke: 6 };
 
-// ------------------------------------------------------------ Texturen (einmalig erzeugt)
+// ------------------------------------------------------------ Textures (created once)
 
 const texCache = new Map();
 function canvasTex(key, w, h, draw, { srgb = true, repeat = false } = {}) {
@@ -34,7 +34,7 @@ function canvasTex(key, w, h, draw, { srgb = true, repeat = false } = {}) {
   return t;
 }
 
-// Weiche, unregelmäßige Rauchwolke
+// Soft, irregular smoke puff
 function smokeTex(i) {
   return canvasTex(`smoke${i}`, 128, 128, (g, w, h) => {
     const r = rng(17 + i * 101);
@@ -51,7 +51,7 @@ function smokeTex(i) {
       g.fillStyle = grad;
       g.fillRect(0, 0, w, h);
     }
-    // Rand sicher ausblenden
+    // Make sure the edge fades out
     g.globalCompositeOperation = 'destination-in';
     const m = g.createRadialGradient(w / 2, h / 2, w * 0.25, w / 2, h / 2, w / 2);
     m.addColorStop(0, 'rgba(0,0,0,1)');
@@ -66,7 +66,7 @@ const tobaccoTex = () =>
     const r = rng(7);
     g.fillStyle = '#6b4526';
     g.fillRect(0, 0, w, h);
-    // Deckblatt: Adern schräg um die Zigarre gewickelt
+    // Wrapper leaf: veins wound diagonally around the cigar
     for (let i = 0; i < 90; i++) {
       const x = r() * w;
       g.strokeStyle = r() < 0.5 ? `rgba(40,22,10,${0.15 + r() * 0.25})` : `rgba(150,105,60,${0.1 + r() * 0.2})`;
@@ -80,7 +80,7 @@ const tobaccoTex = () =>
       g.fillStyle = `rgba(${r() < 0.5 ? '30,15,5' : '140,95,55'},${r() * 0.18})`;
       g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2);
     }
-    // Wickelnaht
+    // Wrapping seam
     g.strokeStyle = 'rgba(30,15,6,0.5)';
     g.lineWidth = 1.5;
     for (let k = -1; k < 3; k++) {
@@ -119,7 +119,7 @@ const ashTex = () =>
     const r = rng(29);
     g.fillStyle = '#8c8781';
     g.fillRect(0, 0, w, h);
-    // Aschringe entlang der Länge
+    // Ash rings along the length
     for (let y = 0; y < h; y += 3 + r() * 6) {
       g.fillStyle = `rgba(${r() < 0.5 ? '60,58,55' : '200,196,190'},${0.2 + r() * 0.35})`;
       g.fillRect(0, y, w, 1 + r() * 2);
@@ -130,7 +130,7 @@ const ashTex = () =>
     }
   });
 
-// Glutspitze: dunkle Asche mit glühenden Rissen (als Emissive-Map)
+// Glowing tip: dark ash with glowing cracks (as an emissive map)
 const emberTex = () =>
   canvasTex('ember', 128, 128, (g, w, h) => {
     const r = rng(41);
@@ -214,9 +214,9 @@ const umbrellaTex = () =>
     g.fillRect(0, h - 6, w, 6);
   });
 
-// ------------------------------------------------------------ Materialien
+// ------------------------------------------------------------ Materials
 
-// Glas: kaum sichtbar in der Fläche, zu den Kanten hin (Fresnel) deutlicher
+// Glass: barely visible face-on, more visible towards the edges (Fresnel)
 function glassMaterial({ color = 0xffffff, opacity = 0.1, edge = 0.7, flat = false } = {}) {
   const m = new THREE.MeshPhysicalMaterial({
     color,
@@ -269,7 +269,7 @@ function mesh(geo, mat, { shadow = true, order = 0 } = {}) {
   return m;
 }
 
-// ------------------------------------------------------------ Rauch / Dampf
+// ------------------------------------------------------------ Smoke / vapour
 
 class Puffs {
   constructor(scene) {
@@ -307,7 +307,7 @@ class Puffs {
       }
       p.vel.multiplyScalar(Math.max(0, 1 - p.drag * dt));
       p.vel.y += p.lift * dt;
-      // leichte Verwirbelung
+      // slight turbulence
       p.vel.x += Math.sin(t * 1.3 + p.ph) * 0.05 * dt;
       p.vel.z += Math.cos(t * 1.1 + p.ph * 1.7) * 0.05 * dt;
       p.s.position.addScaledVector(p.vel, dt);
@@ -332,12 +332,12 @@ class Gadget {
   constructor(fx, hitRadius, hitHeight) {
     this.fx = fx;
     this.group = new THREE.Group();
-    this.body = new THREE.Group(); // wird beim Erscheinen skaliert
+    this.body = new THREE.Group(); // scaled when it appears
     this.group.add(this.body);
-    this.at = Infinity; // Sekunden seit dem letzten Klick
+    this.at = Infinity; // seconds since the last click
     this.acc = 0;
     this.idleAcc = 0;
-    // unsichtbarer Klick-Bereich
+    // invisible click target
     const hit = new THREE.Mesh(
       new THREE.CylinderGeometry(hitRadius, hitRadius, hitHeight, 16),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }),
@@ -347,7 +347,7 @@ class Gadget {
     this.group.add(hit);
   }
 
-  // Emissionen mit fester Rate unabhängig von der Bildrate
+  // Emit at a fixed rate independent of the frame rate
   emit(rate, dt, key, fn) {
     this[key] += rate * dt;
     while (this[key] >= 1) {
@@ -369,7 +369,7 @@ class Gadget {
   }
 }
 
-// Zigarre im Aschenbecher: Glut glüht auf, dann steigt dichter Rauch auf
+// Cigar in an ashtray: the ember glows up, then thick smoke rises
 class Cigar extends Gadget {
   constructor(fx) {
     super(fx, 0.44, 0.35);
@@ -392,7 +392,7 @@ class Cigar extends Gadget {
     ash.position.y = 0.048;
     b.add(ash);
 
-    // Zigarre entlang +y aufgebaut, dann hingelegt
+    // Cigar built along +y, then laid down
     const L = 0.68;
     const R = 0.052;
     const ashLen = 0.09;
@@ -433,7 +433,7 @@ class Cigar extends Gadget {
   }
 
   play(seed, vol) {
-    // erneuter Klick: im Glühen bleiben statt neu anzufangen
+    // clicking again: keep glowing instead of starting over
     this.at = this.at < 3 ? Math.min(this.at, 0.45) : 0;
     this.r = rng(seed);
     sfx.cigar(vol);
@@ -450,7 +450,7 @@ class Cigar extends Gadget {
     this.tip.emissiveIntensity = 0.25 + 3.2 * g * flicker;
     this.light.intensity = 0.04 + 1.1 * g * flicker;
     const pos = this.worldPos(this.emitter, _v);
-    // dünner Faden im Leerlauf
+    // thin wisp while idle
     this.emit(2.6, dt, 'idleAcc', () =>
       this.fx.spawn({
         pos,
@@ -483,7 +483,7 @@ class Cigar extends Gadget {
   }
 }
 
-// Vape: LEDs laufen im Regenbogen, bunte Dampfwolken
+// Vape: LEDs cycle through the rainbow, colourful vapour clouds
 class Vape extends Gadget {
   constructor(fx) {
     super(fx, 0.26, 0.8);
@@ -495,7 +495,7 @@ class Vape extends Gadget {
     const body = mesh(new RoundedBoxGeometry(W, H, D, 4, 0.04), gun);
     body.position.y = H / 2;
     b.add(body);
-    // Display + Feuertaste vorne (zum Spieler)
+    // Display + fire button on the front (facing the player)
     const screen = mesh(new THREE.PlaneGeometry(0.15, 0.084), new THREE.MeshBasicMaterial({ map: screenTex(), toneMapped: false }), { shadow: false });
     screen.position.set(0, 0.29, D / 2 + 0.001);
     b.add(screen);
@@ -503,7 +503,7 @@ class Vape extends Gadget {
     fire.position.set(0, 0.14, D / 2);
     b.add(fire);
 
-    // RGB-Leuchtstreifen rundherum
+    // RGB light strips all around
     this.leds = [];
     const led = (geo, x, y, z, ry, off) => {
       const m = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
@@ -522,7 +522,7 @@ class Vape extends Gadget {
     led(side, W / 2 + 0.001, H / 2, 0, Math.PI / 2, 0.33);
     led(side.clone(), -W / 2 - 0.001, H / 2, 0, -Math.PI / 2, 0.66);
 
-    // Verdampfer oben
+    // Atomizer on top
     const base = mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.035, 32), metal(0xb8c0c8, 0.22));
     base.position.y = H + 0.017;
     b.add(base);
@@ -572,7 +572,7 @@ class Vape extends Gadget {
     const at = this.at;
     const g = at < 0.15 ? at / 0.15 : at < 2.6 ? 1 : Math.max(0, 1 - (at - 2.6) / 0.9);
     this.hue = (this.hue + dt * (0.035 + 1.3 * g)) % 1;
-    // Dampf wechselt langsamer die Farbe als die LEDs, sonst mischt sich alles zu Pastell-Grau
+    // The vapour changes colour more slowly than the LEDs, otherwise it all mixes into pastel grey
     this.vHue = (this.vHue + dt * 0.3) % 1;
     const bright = 0.28 + 0.12 * Math.sin(t * 1.8) + 0.72 * g;
     for (const l of this.leds) {
@@ -600,7 +600,7 @@ class Vape extends Gadget {
   }
 }
 
-// Schwenken wie am Tresen: der Fuß kreist, das Glas neigt sich in Bewegungsrichtung
+// Swirling like at a bar: the base circles and the glass leans into the motion
 class Swirl {
   constructor(radius, tilt, speed) {
     this.radius = radius;
@@ -628,7 +628,7 @@ class Swirl {
     obj.quaternion.setFromAxisAngle(this.axis, this.tilt * this.amp);
   }
 
-  // Neigung der Flüssigkeitsoberfläche relativ zum Glas (hinkt der Bewegung hinterher)
+  // Tilt of the liquid surface relative to the glass (lags behind the motion)
   slosh(surface, glass, amount) {
     const lag = this.phase - 1.1;
     this.dir.set(-Math.sin(lag), 0, Math.cos(lag));
@@ -638,7 +638,7 @@ class Swirl {
   }
 }
 
-// Fancy Cocktail: Martini-Glas mit Sunrise-Verlauf, Orangenscheibe, Kirsche und Schirmchen
+// Fancy cocktail: martini glass with a sunrise gradient, orange slice, cherry and umbrella
 class Cocktail extends Gadget {
   constructor(fx) {
     super(fx, 0.34, 0.62);
@@ -654,7 +654,7 @@ class Cocktail extends Gadget {
     rim.position.y = 0.568;
     glass.add(rim);
 
-    // Flüssigkeit: Kegel mit Farbverlauf von Grenadine-Rot nach Orange
+    // Liquid: cone with a gradient from grenadine red to orange
     const level = 0.5;
     const rTop = 0.028 + ((level - 0.3) / 0.265) * 0.267 - 0.008;
     const liqGeo = new THREE.LatheGeometry(
@@ -680,17 +680,17 @@ class Cocktail extends Gadget {
     this.surface.add(surf);
     glass.add(this.surface);
 
-    // Orangenscheibe auf dem Rand
+    // Orange slice on the rim
     const sliceMat = new THREE.MeshStandardMaterial({ map: orangeTex(), roughness: 0.5 });
     const rind = new THREE.MeshStandardMaterial({ color: 0xf08a12, roughness: 0.55 });
     const slice = mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.018, 36), [rind, sliceMat, sliceMat]);
-    // Scheibe steht senkrecht auf dem Rand (Achse tangential zum Rand)
+    // The slice stands upright on the rim (axis tangential to the rim)
     slice.rotation.order = 'YXZ';
     slice.rotation.set(Math.PI / 2, 0.5, 0);
     slice.position.set(Math.cos(-0.5) * 0.29, 0.6, Math.sin(-0.5) * 0.29);
     glass.add(slice);
 
-    // Kirsche am Spießchen
+    // Cherry on a pick
     const pick = mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.36, 6), metal(0xd4a84a, 0.3));
     pick.position.set(-0.05, 0.52, 0.06);
     pick.rotation.set(0.35, 0, 0.5);
@@ -699,7 +699,7 @@ class Cocktail extends Gadget {
     cherry.position.set(0.03, 0.515, 0.03);
     glass.add(cherry);
 
-    // Cocktail-Schirmchen
+    // Cocktail umbrella
     const umb = new THREE.Group();
     const canopy = mesh(
       new THREE.ConeGeometry(0.13, 0.055, 8, 1, true),
@@ -731,7 +731,7 @@ class Cocktail extends Gadget {
   }
 }
 
-// Whiskey on the rocks: kristallenes Tumbler-Glas, Eiswürfel klackern beim Schwenken
+// Whiskey on the rocks: crystal tumbler, ice cubes clink when swirled
 class Whiskey extends Gadget {
   constructor(fx) {
     super(fx, 0.33, 0.55);
@@ -741,7 +741,7 @@ class Whiskey extends Gadget {
     const prof = [
       [0, 0], [0.25, 0], [0.265, 0.015], [0.282, 0.5], [0.27, 0.506], [0.257, 0.49], [0.244, 0.11], [0.2, 0.092], [0, 0.09],
     ].map(([x, y]) => new THREE.Vector2(x, y));
-    // wenige Segmente + flat shading = geschliffenes Kristallglas
+    // few segments + flat shading = cut crystal
     glass.add(mesh(new THREE.LatheGeometry(prof, 12), glassMaterial({ color: 0xf4f8ff, opacity: 0.12, edge: 0.75, flat: true }), { shadow: false, order: ORDER.glass }));
     const liq = mesh(
       new THREE.CylinderGeometry(0.226, 0.215, 0.16, 36),
@@ -783,7 +783,7 @@ class Whiskey extends Gadget {
   play(seed, vol) {
     this.at = this.at < 2.4 ? Math.min(this.at, 0.3) : 0;
     const r = rng(seed);
-    // Klack-Folge: erst dicht, dann seltener und leiser
+    // Clink sequence: dense at first, then sparser and quieter
     this.clinks = [];
     let t = 0.06;
     for (let i = 0; i < 9 && t < 2.3; i++) {
@@ -796,7 +796,7 @@ class Whiskey extends Gadget {
     this.at += dt;
     this.swirl.update(dt, this.at < 2.4, this.glass);
     const amp = this.swirl.amp;
-    // Eis kreist im Glas mit und wackelt
+    // The ice circles in the glass and wobbles
     this.ice.rotation.y += dt * amp * 5.5;
     for (const c of this.cubes) {
       const { home, rot, ph } = c.userData;
@@ -812,7 +812,7 @@ class Whiskey extends Gadget {
 
 const KINDS = { cigar: Cigar, vape: Vape, cocktail: Cocktail, whiskey: Whiskey };
 
-// ------------------------------------------------------------ Verwaltung + Eingabe
+// ------------------------------------------------------------ Management + input
 
 export class Gadgets {
   constructor({ stage, send, socket }) {
@@ -869,7 +869,7 @@ export class Gadgets {
       this.items[i] = g;
       this.#place(i);
       this.stage.scene.add(g.group);
-      // kurz aufploppen
+      // pop in briefly
       if (!this.first) {
         g.body.scale.setScalar(0.01);
         tween({ duration: 450, easing: ease.outBack, update: (k) => g.body.scale.setScalar(Math.max(0.01, k)) });

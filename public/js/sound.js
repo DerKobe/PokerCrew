@@ -1,4 +1,4 @@
-// Synthetische Soundeffekte über WebAudio – keine Audiodateien nötig.
+// Synthesized sound effects via WebAudio – no audio files needed.
 let ctx = null;
 let master = null;
 let noiseBuf = null;
@@ -54,7 +54,7 @@ function tone(t, freq, dur, { type = 'sine', gain = 0.2, attack = 0.01 } = {}) {
   o.stop(t + dur + 0.05);
 }
 
-// Gehaltenes Rauschen (Zischen, Schwappen): Einblenden, halten, ausblenden
+// Sustained noise (hiss, slosh): fade in, hold, fade out
 function swell(t, dur, { type = 'bandpass', freq = 2000, sweepTo = null, q = 0.7, gain = 0.1, attack = 0.2, release = 0.4 } = {}) {
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf;
@@ -89,14 +89,14 @@ export const sfx = {
       noise(t, 0.03, { freq: 1600, q: 2, gain: 0.12 });
     }
   },
-  // Einzelner Chip, der beim Riffeln auf den anderen fällt
+  // A single chip dropping onto the others while riffling
   tick(vol = 1) {
     if (!this.enabled || !ensure()) return;
     const t = ctx.currentTime;
     noise(t, 0.02 + Math.random() * 0.014, { freq: 3600 + Math.random() * 2800, q: 6, gain: 0.3 * vol });
     noise(t, 0.012, { type: 'highpass', freq: 6500, q: 0.7, gain: 0.07 * vol });
   },
-  // Herzschlag (zwei dumpfe Schläge) für den theatralischen River
+  // Heartbeat (two dull thumps) for the dramatic river
   heartbeat() {
     if (!this.ok) return;
     const t = ctx.currentTime;
@@ -105,7 +105,7 @@ export const sfx = {
     tone(t + 0.2, 54, 0.2, { gain: 0.42, attack: 0.008 });
     noise(t + 0.2, 0.06, { type: 'lowpass', freq: 160, gain: 0.28 });
   },
-  // Akzent beim Aufdecken des entscheidenden Rivers
+  // Accent when the deciding river is revealed
   sting() {
     if (!this.ok) return;
     const t = ctx.currentTime;
@@ -114,7 +114,7 @@ export const sfx = {
     tone(t, 98, 0.5, { gain: 0.3, attack: 0.005 });
   },
   // ---- Gadgets ----
-  // Zug an der Zigarre: leises Ansaugen + Knistern der Glut
+  // Drawing on the cigar: soft inhale + crackling ember
   cigar(vol = 1) {
     if (!this.ok) return;
     const t = ctx.currentTime;
@@ -123,7 +123,7 @@ export const sfx = {
       noise(t + 0.15 + Math.random() * 1.2, 0.01 + Math.random() * 0.01, { freq: 1500 + Math.random() * 3000, q: 3, gain: (0.05 + Math.random() * 0.1) * vol });
     }
   },
-  // Vape: Klick auf die Feuertaste, dann Zischen der Coil
+  // Vape: click on the fire button, then the hiss of the coil
   vape(vol = 1) {
     if (!this.ok) return;
     const t = ctx.currentTime;
@@ -134,7 +134,7 @@ export const sfx = {
       noise(t + 0.1 + Math.random() * 1.8, 0.008, { freq: 4000 + Math.random() * 3000, q: 4, gain: (0.03 + Math.random() * 0.05) * vol });
     }
   },
-  // Cocktail schwenken: Flüssigkeit schwappt im Kreis
+  // Swirling the cocktail: liquid sloshing around
   slosh(vol = 1) {
     if (!this.ok) return;
     const t = ctx.currentTime;
@@ -144,7 +144,7 @@ export const sfx = {
     tone(t + 0.02, 3100, 0.5, { gain: 0.025 * vol, attack: 0.001 });
     tone(t + 0.02, 4650, 0.3, { gain: 0.012 * vol, attack: 0.001 });
   },
-  // Eiswürfel: hell klingend gegen das Glas, dumpfer gegeneinander
+  // Ice cubes: bright against the glass, duller against each other
   clink(vol = 1, kind = 'glass', pitch = 1) {
     if (!this.ok) return;
     const t = ctx.currentTime;
