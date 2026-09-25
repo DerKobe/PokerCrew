@@ -30,7 +30,7 @@ export function defaultConfig() {
   return {
     startingStack: 10000,
     levelMinutes: 10,
-    actionSeconds: 30,
+    actionSeconds: 300,
     levels: DEFAULT_LEVELS.map((l) => ({ ...l })),
   };
 }
