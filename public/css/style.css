@@ -207,15 +207,16 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 /* ------------------------------------------------ Voice */
 #voice {
   position: fixed; top: 64px; right: 16px; z-index: 15;
-  width: 210px;
+  min-width: 300px; max-width: calc(100vw - 32px);
   background: var(--glass); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 10px; backdrop-filter: blur(10px);
 }
 .vhead { display: flex; align-items: center; gap: 8px; }
-.vtitle { margin-left: auto; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.vhead > * { flex: none; }
+.vtitle { margin-left: auto; padding-left: 4px; white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
 .mic-btn {
   display: flex; align-items: center; gap: 6px;
-  padding: 8px 12px; border-radius: 10px; border: 0; font-weight: 700; font-size: 13px;
+  padding: 8px 12px; border-radius: 10px; border: 0; font-weight: 700; font-size: 13px; white-space: nowrap;
   background: rgba(62, 194, 122, 0.18); color: #8ff0b8;
 }
 .mic-btn svg { width: 17px; height: 17px; fill: currentColor; }
@@ -421,9 +422,13 @@ label input, .blinds input {
   padding: 9px 11px; font-size: 14px; color: var(--ink); outline: none; user-select: text; width: 100%;
 }
 label input:focus, .blinds input:focus { border-color: var(--gold); }
-.name-row label { flex: 1; }
-.name-row input { font-size: 16px; font-weight: 600; }
-.gadget-row { display: grid; gap: 7px; margin-bottom: 14px; }
+.name-row label { flex: 1; text-align: center; }
+.name-row input {
+  font: 800 30px/1.1 Inter, sans-serif; letter-spacing: 0.02em; text-align: center;
+  padding: 12px 16px; border-radius: 12px;
+}
+.name-row input::placeholder { font-weight: 700; color: rgba(255, 255, 255, 0.22); }
+.gadget-row { display: grid; gap: 7px; margin-bottom: 22px; }
 .gadget-row .lbl { font-size: 12px; color: var(--muted); font-weight: 600; }
 .gadget-row .lbl em { font-style: normal; font-weight: 500; opacity: 0.75; }
 .gadget-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -436,7 +441,7 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .gadget-opt:hover { background: rgba(230, 196, 106, 0.08); }
 .gadget-opt.active { border-color: var(--gold); color: var(--gold); background: rgba(230, 196, 106, 0.13); transform: translateY(-1px); }
 .seat .sg { font-size: 14px; }
-.seatgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 22px; }
+.seatgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px; }
 .seat {
   display: grid; gap: 4px; justify-items: center; text-align: center;
   padding: 12px 6px; border-radius: 12px; min-height: 92px; align-content: center;
@@ -468,8 +473,11 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .blinds .del:hover { color: var(--red); }
 .struct-foot { align-items: center; flex-wrap: wrap; }
 .struct-summary { align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.blind-summary { color: var(--muted); font-size: 13px; }
-.blind-summary b { color: var(--ink); }
+.struct-sum { color: var(--muted); font-size: 13px; display: grid; gap: 3px; }
+.struct-sum b { color: var(--ink); }
+.struct-editor { margin-bottom: 12px; }
+.struct-editor .presets { margin: 0 0 12px; }
+.struct-editor h3 { font: 700 15px var(--serif); margin: 4px 0 10px; }
 .estimate { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
 .estimate b { color: var(--gold); }
 .hint { color: var(--muted); font-size: 12px; margin: 0; }
@@ -530,7 +538,7 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #topbar { padding: 8px; gap: 8px; }
   .levelinfo { padding: 5px 12px; gap: 8px; font-size: 12px; }
   .levelinfo .hand-no { display: none; }
-  #voice { top: auto; bottom: 16px; left: 16px; right: auto; width: auto; padding: 6px; }
+  #voice { top: auto; bottom: 16px; left: 16px; right: auto; width: auto; min-width: 0; padding: 6px; }
   #voice .vlist, #voice .vtitle { display: none; }
   #log { left: auto; right: 16px; bottom: auto; top: 58px; width: auto; }
   #log .log-toggle span { display: none; }

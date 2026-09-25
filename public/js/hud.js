@@ -237,30 +237,31 @@ export class Hud {
     el.innerHTML = `
       <div class="lobby-card">
         <h1>Neues Turnier</h1>
-        <p class="sub">Wähle einen Platz, gib deinen Namen ein – los geht's, sobald mindestens zwei sitzen.</p>
+        <p class="sub">Gib deinen Namen ein, wähle einen Platz – los geht's, sobald mindestens zwei sitzen.</p>
         <div class="row name-row">
           <label>Dein Name<input id="in-name" maxlength="16" placeholder="z. B. Alex" autocomplete="nickname"></label>
         </div>
+        <div class="seatgrid"></div>
         <div class="gadget-row">
           <span class="lbl">Dein Gadget <em>– liegt neben dir am Tisch, Klick darauf für eine Animation</em></span>
           <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${g.label}</span></button>`).join('')}</div>
         </div>
-        <div class="seatgrid"></div>
         <div class="struct">
           <div class="struct-head">
             <h2>Turnierstruktur</h2>
-            <div class="presets"></div>
-          </div>
-          <div class="row three">
-            <label>Startchips<input id="in-stack" type="number" min="100" step="100"></label>
-            <label>Level-Dauer (Min.)<input id="in-level" type="number" min="1" max="120"></label>
-            <label>Zeit pro Zug (Sek.)<input id="in-action" type="number" min="10" max="300"></label>
           </div>
           <div class="row struct-summary">
-            <div class="blind-summary"></div>
-            <button class="ghost" id="btn-blinds" aria-expanded="false"></button>
+            <div class="struct-sum"></div>
+            <button class="ghost" id="btn-struct" aria-expanded="false"></button>
           </div>
-          <div class="blinds-editor hidden">
+          <div class="struct-editor hidden">
+            <div class="presets"></div>
+            <div class="row three">
+              <label>Startchips<input id="in-stack" type="number" min="100" step="100"></label>
+              <label>Level-Dauer (Min.)<input id="in-level" type="number" min="1" max="120"></label>
+              <label>Zeit pro Zug (Sek.)<input id="in-action" type="number" min="10" max="300"></label>
+            </div>
+            <h3>Blindstruktur</h3>
             <div class="blinds-wrap">
               <table class="blinds"><thead><tr><th>Level</th><th>Small Blind</th><th>Big Blind</th><th>Ante</th><th>Beginn</th><th></th></tr></thead><tbody></tbody></table>
             </div>
@@ -315,10 +316,10 @@ export class Hud {
     };
     $('#btn-reset').onclick = () => this.send('config', defaultConfig());
     $('#btn-start').onclick = () => this.send('start');
-    // Blindstruktur ist standardmäßig eingeklappt
-    this.blindsOpen = false;
-    $('#btn-blinds').onclick = () => {
-      this.blindsOpen = !this.blindsOpen;
+    // Turnier- und Blindstruktur sind standardmäßig eingeklappt
+    this.structOpen = false;
+    $('#btn-struct').onclick = () => {
+      this.structOpen = !this.structOpen;
       if (this.state) this.#renderLobby(this.state);
     };
     $('.blinds tbody', el).addEventListener('change', (e) => {
@@ -406,13 +407,16 @@ export class Hud {
         )
         .join('');
     }
-    $('.blinds-editor', el).classList.toggle('hidden', !this.blindsOpen);
-    const toggle = $('#btn-blinds');
-    toggle.textContent = this.blindsOpen ? 'Blindstruktur ausblenden ▴' : canEdit ? 'Blindstruktur bearbeiten ▾' : 'Blindstruktur anzeigen ▾';
-    toggle.setAttribute('aria-expanded', String(this.blindsOpen));
+    $('.struct-editor', el).classList.toggle('hidden', !this.structOpen);
+    const toggle = $('#btn-struct');
+    toggle.textContent = this.structOpen ? 'Ausblenden ▴' : canEdit ? 'Bearbeiten ▾' : 'Anzeigen ▾';
+    toggle.setAttribute('aria-expanded', String(this.structOpen));
     const first = c.levels[0];
     const last = c.levels[c.levels.length - 1];
-    $('.blind-summary', el).innerHTML = `<b>${c.levels.length} Level</b> à ${c.levelMinutes} Min. · Blinds ${fmt(first.sb)}/${fmt(first.bb)} → ${fmt(last.sb)}/${fmt(last.bb)}`;
+    const preset = PRESETS.find((p) => p.levelMinutes === c.levelMinutes);
+    $('.struct-sum', el).innerHTML =
+      `<div><b>${fmt(c.startingStack)} Startchips</b> · ${c.levelMinutes}-Min.-Level${preset ? ` (${preset.label.replace(/\s*\(.*\)/, '')})` : ''} · ${c.actionSeconds} s pro Zug</div>` +
+      `<div>${c.levels.length} Level · Blinds ${fmt(first.sb)}/${fmt(first.bb)} → ${fmt(last.sb)}/${fmt(last.bb)}</div>`;
     $('#btn-addlvl').disabled = !canEdit;
     $('#btn-reset').disabled = !canEdit;
     const n = Math.max(2, seated);
