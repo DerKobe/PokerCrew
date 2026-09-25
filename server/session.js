@@ -1,24 +1,23 @@
-// Die eine Poker-Sitzung: Lobby -> Turnier -> Ergebnis.
+// The single poker session: lobby -> tournament -> results.
 import { randomUUID, randomInt } from 'node:crypto';
 import { HandEngine } from './engine.js';
 import { MAX_SEATS, defaultConfig, sanitizeConfig, levelAt } from '../shared/config.js';
 import { isGadget } from '../shared/gadgets.js';
+import { UserError } from './errors.js';
 
 const DELAY = {
-  street: 900, // Pause bevor die nächste Straße kommt
-  runout: 1800, // All-in-Runout zwischen den Straßen
-  showdown: 6500, // Ergebnis anzeigen bis zur nächsten Hand
+  street: 900, // pause before the next street is dealt
+  runout: 1800, // all-in runout between streets
+  showdown: 6500, // show the result until the next hand
   uncontested: 3200,
-  rabbitWindow: 5000, // so lange kann man die Rabbit Cam anfordern
-  rabbitShow: 5000, // so lange bleiben die Rabbit-Karten liegen
-  revealTimeout: 20_000, // All-in-Runout: automatisch aufdecken, falls niemand klickt
-  dramatic: 7500, // Pause nach einem inszenierten River bis zum Showdown
-  away: 1200, // abwesende Spieler handeln automatisch
+  rabbitWindow: 5000, // how long the Rabbit Cam can be requested
+  rabbitShow: 5000, // how long the Rabbit Cam cards stay on the table
+  revealTimeout: 20_000, // all-in runout: reveal automatically if nobody clicks
+  dramatic: 7500, // pause after a dramatic river before the showdown
+  away: 1200, // away players act automatically
   disconnected: 12000,
-  lobbyLeave: 90_000, // Sitz in der Lobby freigeben, wenn getrennt
+  lobbyLeave: 90_000, // free a lobby seat after a disconnect
 };
-
-const fmt = (n) => Number(n || 0).toLocaleString('de-DE');
 
 export class Session {
   constructor(io, { log = console.log, delays = {} } = {}) {
@@ -53,7 +52,7 @@ export class Session {
     this.pendingReveal = null;
   }
 
-  // ---------- Verbindungen ----------
+  // ---------- Connections ----------
 
   connect(socket) {
     let token = socket.handshake.auth?.token;
@@ -71,7 +70,9 @@ export class Session {
         try {
           fn(...args);
         } catch (err) {
-          socket.emit('toast', { kind: 'error', text: err.message || String(err) });
+          if (!(err instanceof UserError)) console.error(err);
+          const code = err instanceof UserError ? err.code : 'generic';
+          socket.emit('toast', { kind: 'error', key: `err.${code}`, p: err.params || {} });
         }
       });
 
@@ -132,22 +133,22 @@ export class Session {
 
   #requireSeat(token) {
     const seat = this.seatOfToken(token);
-    if (seat == null) throw new Error('Nur Spieler am Tisch können das.');
+    if (seat == null) throw new UserError('seatedOnly');
     return seat;
   }
 
   // ---------- Lobby ----------
 
   sit(token, seat, name, gadget) {
-    if (this.phase !== 'lobby') throw new Error('Das Turnier läuft bereits.');
+    if (this.phase !== 'lobby') throw new UserError('tournamentRunning');
     seat = Number(seat);
-    if (!Number.isInteger(seat) || seat < 0 || seat >= MAX_SEATS) throw new Error('Ungültiger Platz');
+    if (!Number.isInteger(seat) || seat < 0 || seat >= MAX_SEATS) throw new UserError('invalidSeat');
     name = String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 16);
-    if (!name) throw new Error('Bitte gib einen Namen ein.');
+    if (!name) throw new UserError('nameRequired');
     const current = this.seats[seat];
-    if (current && current.token !== token) throw new Error('Der Platz ist schon belegt.');
+    if (current && current.token !== token) throw new UserError('seatTaken');
     if (this.seats.some((s, i) => s && i !== seat && s.token !== token && s.name.toLowerCase() === name.toLowerCase()))
-      throw new Error('Der Name ist schon vergeben.');
+      throw new UserError('nameTaken');
     const old = this.seatOfToken(token);
     const prevGadget = old != null ? this.seats[old].gadget : null;
     if (old != null) this.seats[old] = null;
@@ -161,30 +162,30 @@ export class Session {
       eliminated: false,
       place: null,
     };
-    this.#addLog(`${name} nimmt Platz ${seat + 1}.`);
+    this.#addLog('sit', { name, seat });
     this.broadcast();
   }
 
   stand(token) {
-    if (this.phase !== 'lobby') throw new Error('Während des Turniers kannst du nicht aufstehen.');
+    if (this.phase !== 'lobby') throw new UserError('cannotStand');
     const seat = this.seatOfToken(token);
     if (seat == null) return;
-    this.#addLog(`${this.seats[seat].name} steht auf.`);
+    this.#addLog('stand', { name: this.seats[seat].name });
     this.seats[seat] = null;
     this.broadcast();
   }
 
-  // Gadget nur in der Lobby wählbar – während des Turniers bleibt es fest
+  // The gadget can only be chosen in the lobby – it stays fixed during the tournament
   setGadget(token, id) {
-    if (this.phase !== 'lobby') throw new Error('Das Gadget kannst du erst beim nächsten Turnier wechseln.');
+    if (this.phase !== 'lobby') throw new UserError('gadgetLocked');
     const seat = this.#requireSeat(token);
-    if (!isGadget(id)) throw new Error('Unbekanntes Gadget');
+    if (!isGadget(id)) throw new UserError('unknownGadget');
     this.seats[seat].gadget = id;
     this.broadcast();
   }
 
   setConfig(token, data) {
-    if (this.phase !== 'lobby') throw new Error('Die Struktur kann nur vor dem Turnier geändert werden.');
+    if (this.phase !== 'lobby') throw new UserError('configLocked');
     this.#requireSeat(token);
     this.config = sanitizeConfig(data, this.config);
     this.broadcast();
@@ -194,7 +195,7 @@ export class Session {
     if (this.phase !== 'lobby') return;
     this.#requireSeat(token);
     const seated = this.seats.map((s, i) => (s ? i : -1)).filter((i) => i >= 0);
-    if (seated.length < 2) throw new Error('Mindestens zwei Spieler müssen Platz nehmen.');
+    if (seated.length < 2) throw new UserError('needTwo');
     for (const i of seated) {
       const s = this.seats[i];
       clearTimeout(s.leaveTimer);
@@ -208,11 +209,11 @@ export class Session {
     this.buttonSeat = seated[randomInt(seated.length)];
     this.handCount = 0;
     const l = levelAt(this.config, 0);
-    this.#addLog(`Turnier gestartet! ${seated.length} Spieler, je ${fmt(this.config.startingStack)} Chips. Blinds ${fmt(l.sb)}/${fmt(l.bb)}.`, 'system');
+    this.#addLog('started', { n: seated.length, stack: this.config.startingStack, sb: l.sb, bb: l.bb }, 'system');
     this.#startHand(true);
   }
 
-  // ---------- Turnier ----------
+  // ---------- Tournament ----------
 
   levelElapsed(now = Date.now()) {
     if (this.phase !== 'running' && this.phase !== 'finished') return 0;
@@ -230,7 +231,7 @@ export class Session {
     if (idx !== this.lastLevel) {
       this.lastLevel = idx;
       const l = levelAt(this.config, idx);
-      this.#addLog(`Level ${idx + 1}: Blinds steigen auf ${fmt(l.sb)}/${fmt(l.bb)}${l.ante ? ` (Ante ${fmt(l.ante)})` : ''} – ab der nächsten Hand.`, 'level');
+      this.#addLog('level', { level: idx + 1, sb: l.sb, bb: l.bb, ante: l.ante }, 'level');
       this.io.emit('levelUp', { level: idx + 1, ...l });
       this.broadcast();
     }
@@ -270,8 +271,8 @@ export class Session {
 
   action(token, type, amount) {
     const seat = this.#requireSeat(token);
-    if (!this.hand || this.hand.phase !== 'betting') throw new Error('Gerade keine Aktion möglich.');
-    if (this.hand.toAct !== seat) throw new Error('Du bist nicht am Zug.');
+    if (!this.hand || this.hand.phase !== 'betting') throw new UserError('noAction');
+    if (this.hand.toAct !== seat) throw new UserError('notYourTurn');
     this.seats[seat].away = false;
     this.#doAction(seat, type, amount);
   }
@@ -283,17 +284,8 @@ export class Session {
   }
 
   #logAction(seat, ev) {
-    const n = this.seats[seat].name;
-    const ai = ev.allIn ? ' (All-in)' : '';
-    let text = null;
-    switch (ev.type) {
-      case 'fold': text = `${n} passt.`; break;
-      case 'check': text = `${n} checkt.`; break;
-      case 'call': text = `${n} geht mit (${fmt(ev.amount)})${ai}.`; break;
-      case 'bet': text = `${n} setzt ${fmt(ev.amount)}${ai}.`; break;
-      case 'raise': text = `${n} erhöht auf ${fmt(ev.amount)}${ai}.`; break;
-    }
-    if (text) this.#addLog(text, 'action');
+    if (!['fold', 'check', 'call', 'bet', 'raise'].includes(ev.type)) return;
+    this.#addLog(ev.type, { name: this.seats[seat].name, amount: ev.amount, allIn: !!ev.allIn }, 'action');
   }
 
   #afterChange() {
@@ -306,7 +298,7 @@ export class Session {
       this.#armActionTimer();
     } else if (h.phase === 'roundComplete') {
       if (h.runout && h.board.length < 5) {
-        // All-in-Runout mit offenen Karten: nächste Straße erst auf Klick (oder nach Timeout)
+        // All-in runout with cards face up: next street only on click (or after a timeout)
         const next = h.board.length === 0 ? 'flop' : h.board.length === 3 ? 'turn' : 'river';
         this.pendingReveal = { handId: h.handId, next, until: Date.now() + this.delay.revealTimeout };
         this.#step(this.delay.revealTimeout, () => this.#revealNext(null));
@@ -338,9 +330,8 @@ export class Session {
     const h = this.hand;
     if (!pr || !h || h.handId !== pr.handId || h.phase !== 'roundComplete') return;
     this.pendingReveal = null;
-    const names = { flop: 'den Flop', turn: 'den Turn', river: 'den River' };
-    if (seat != null) this.#addLog(`${this.seats[seat].name} deckt ${names[pr.next]} auf.`, 'system');
-    // Entscheidet nur noch der River über den Sieger? -> theatralisch aufdecken
+    if (seat != null) this.#addLog('reveal', { name: this.seats[seat].name, street: pr.next }, 'system');
+    // Does only the river decide the winner? -> reveal it dramatically
     if (pr.next === 'river') h.dramaticRiver = h.riverDecides();
     this.#advanceHand();
   }
@@ -355,7 +346,7 @@ export class Session {
     try {
       fn();
     } catch (err) {
-      console.error('Fehler im Spielablauf:', err);
+      console.error('Error in game flow:', err);
       this.broadcast();
     }
   }
@@ -375,7 +366,7 @@ export class Session {
       const legal = h.legalActions(seat);
       if (!s.away) {
         s.away = true;
-        this.#addLog(`${s.name} ist abwesend – es wird automatisch gecheckt/gepasst.`, 'system');
+        this.#addLog('away', { name: s.name }, 'system');
       }
       this.#doAction(seat, legal.canCheck ? 'check' : 'fold');
     }), ms);
@@ -387,12 +378,11 @@ export class Session {
     for (const p of h.players) this.seats[p.seat].stack = p.stack;
     const r = h.results;
     for (const pot of r.pots) {
-      const names = pot.winners.map((s) => this.seats[s].name).join(' & ');
-      const verb = pot.winners.length > 1 ? 'teilen sich' : 'gewinnt';
-      const potName = r.pots.length > 1 ? (pot === r.pots[0] ? 'den Hauptpot' : 'einen Sidepot') : 'den Pot';
-      this.#addLog(`${names} ${verb} ${potName} (${fmt(pot.amount)})${pot.handName ? ` mit ${pot.handName}` : ''}.`, 'win');
+      const names = pot.winners.map((s) => this.seats[s].name);
+      const which = r.pots.length > 1 ? (pot === r.pots[0] ? 'main' : 'side') : 'only';
+      this.#addLog('win', { names, pot: which, amount: pot.amount, hand: pot.hand }, 'win');
     }
-    // Rabbit Cam: Endet die Hand vor dem River, darf man kurz die restlichen Karten anfordern
+    // Rabbit Cam: if the hand ends before the river, players may briefly request the remaining cards
     if (r.uncontested && h.board.length < 5) {
       this.rabbit = { handId: h.handId, until: Date.now() + this.delay.rabbitWindow, cards: null, by: null };
       this.#step(this.delay.rabbitWindow, () => this.#afterHand());
@@ -409,9 +399,7 @@ export class Session {
     if (!rb || rb.cards || !this.hand || this.hand.handId !== rb.handId || Date.now() > rb.until) return;
     rb.cards = this.hand.rabbitCards();
     rb.by = this.seats[seat].name;
-    const suit = { s: '♠', h: '♥', d: '♦', c: '♣' };
-    const label = (c) => `${c[0] === 'T' ? '10' : c[0]}${suit[c[1]]}`;
-    this.#addLog(`🐇 ${rb.by} will die Rabbit Cam sehen: ${rb.cards.map(label).join(' ')}`, 'system');
+    this.#addLog('rabbit', { name: rb.by, cards: rb.cards }, 'system');
     this.#step(this.delay.rabbitShow, () => this.#afterHand());
     this.broadcast();
   }
@@ -421,7 +409,7 @@ export class Session {
     const alive = this.#alive();
     const busted = alive.filter((i) => this.seats[i].stack <= 0);
     if (busted.length) {
-      // Wer mit weniger Chips in die Hand ging, scheidet schlechter platziert aus
+      // Whoever started the hand with fewer chips finishes in the lower place
       busted.sort((a, b) => h.player(a).startStack - h.player(b).startStack);
       let place = alive.length;
       for (const i of busted) {
@@ -429,7 +417,7 @@ export class Session {
         s.eliminated = true;
         s.place = place--;
         this.results.push({ seat: i, name: s.name, place: s.place });
-        this.#addLog(`${s.name} scheidet auf Platz ${s.place} aus.`, 'bust');
+        this.#addLog('bust', { name: s.name, place: s.place }, 'bust');
       }
     }
     const left = this.#alive();
@@ -441,7 +429,7 @@ export class Session {
       this.phase = 'finished';
       this.finishedAt = Date.now();
       this.hand = null;
-      this.#addLog(`🏆 ${w.name} gewinnt das Turnier!`, 'win');
+      this.#addLog('champion', { name: w.name }, 'win');
       this.broadcast();
       return;
     }
@@ -463,11 +451,11 @@ export class Session {
     if (!this.paused) {
       this.paused = true;
       this.pausedAt = Date.now();
-      this.#addLog(`${name} pausiert das Turnier${this.hand && this.hand.phase !== 'complete' ? ' (nach dieser Hand)' : ''}.`, 'system');
+      this.#addLog('pause', { name, afterHand: !!this.hand && this.hand.phase !== 'complete' }, 'system');
     } else {
       this.paused = false;
       this.pausedTotal += Date.now() - this.pausedAt;
-      this.#addLog(`${name} setzt das Turnier fort.`, 'system');
+      this.#addLog('resume', { name }, 'system');
       if (!this.hand) this.#startHand();
     }
     this.broadcast();
@@ -478,14 +466,14 @@ export class Session {
     if (this.phase === 'lobby') return;
     const name = this.seats[seat].name;
     this.#resetTournament();
-    this.#addLog(`${name} hat das Turnier abgebrochen.`, 'system');
+    this.#addLog('aborted', { name }, 'system');
     this.broadcast();
   }
 
   newTournament(token) {
     if (this.phase !== 'finished') return;
     this.#resetTournament();
-    this.#addLog('Neues Turnier – bitte Platz nehmen!', 'system');
+    this.#addLog('newTournament', {}, 'system');
     this.broadcast();
   }
 
@@ -493,22 +481,22 @@ export class Session {
     text = String(text ?? '').trim().slice(0, 200);
     if (!text) return;
     const seat = this.seatOfToken(token);
-    const name = seat != null ? this.seats[seat].name : 'Zuschauer';
-    this.#addLog(`${name}: ${text}`, 'chat');
+    this.#addLog('chat', { name: seat != null ? this.seats[seat].name : null, text }, 'chat');
     this.broadcast();
   }
 
-  #addLog(text, kind = 'info') {
-    this.log.push({ t: Date.now(), text, kind, id: (this.logId = (this.logId || 0) + 1) });
+  // Log entries are keys + parameters; each client renders them in its own language
+  #addLog(key, p = {}, kind = 'info') {
+    this.log.push({ t: Date.now(), key, p, kind, id: (this.logId = (this.logId || 0) + 1) });
     if (this.log.length > 80) this.log.shift();
   }
 
-  // ---------- Chip-Riffle (rein kosmetisch, nur weiterreichen) ----------
+  // ---------- Chip riffle (purely cosmetic, just relayed) ----------
 
   fidget(socket, token, d) {
     const seat = this.seatOfToken(token);
     if (seat == null || !d || !['start', 'progress', 'auto', 'sort'].includes(d.type)) return;
-    // einfache Drosselung gegen Flut
+    // simple rate limit against flooding
     const c = this.clients.get(socket.id);
     const now = Date.now();
     if (!c.fidget || now - c.fidget.t > 1000) c.fidget = { t: now, n: 0 };
@@ -524,7 +512,7 @@ export class Session {
     });
   }
 
-  // Klick aufs eigene Gadget: Animation bei allen anderen abspielen
+  // Click on your own gadget: play the animation for everyone else
   playGadget(socket, token) {
     const seat = this.seatOfToken(token);
     if (seat == null || !this.seats[seat].gadget) return;
@@ -535,7 +523,7 @@ export class Session {
     socket.broadcast.emit('gadget', { seat, seed: randomInt(2 ** 31) });
   }
 
-  // ---------- Voice-Signaling (WebRTC Mesh) ----------
+  // ---------- Voice signaling (WebRTC mesh) ----------
 
   voiceJoin(socket, d) {
     const c = this.clients.get(socket.id);
@@ -560,7 +548,7 @@ export class Session {
     this.broadcast();
   }
 
-  // ---------- Zustand an Clients ----------
+  // ---------- State for clients ----------
 
   view(token, socketId) {
     const mySeat = this.seatOfToken(token);

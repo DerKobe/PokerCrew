@@ -1,8 +1,9 @@
-// No-Limit Texas Hold'em – eine einzelne Hand.
-// Server-autoritativ; der Controller (session.js) steuert Timing über advance().
+// No-Limit Texas Hold'em – a single hand.
+// Server-authoritative; the controller (session.js) drives the timing via advance().
 import { createDeck, evaluateBest } from '../shared/cards.js';
 import { MAX_SEATS } from '../shared/config.js';
 import { randomInt } from 'node:crypto';
+import { UserError } from './errors.js';
 
 export function shuffle(deck) {
   const d = deck.slice();
@@ -20,7 +21,7 @@ export class HandEngine {
    * @param {{players:{seat:number,stack:number}[], buttonSeat:number, sb:number, bb:number, ante?:number, deck?:string[], handId?:number}} o
    */
   constructor({ players, buttonSeat, sb, bb, ante = 0, deck, handId = 1 }) {
-    if (players.length < 2) throw new Error('Mindestens zwei Spieler nötig');
+    if (players.length < 2) throw new UserError('needTwo');
     this.handId = handId;
     this.sb = sb;
     this.bb = bb;
@@ -63,7 +64,7 @@ export class HandEngine {
     return this.players.filter((p) => !p.folded);
   }
 
-  // Nächster Sitz im Uhrzeigersinn nach `seat`, der `filter` erfüllt.
+  // Next seat clockwise after `seat` that satisfies `filter`.
   nextSeat(seat, filter = () => true) {
     const after = this.players.filter((p) => p.seat > seat);
     const before = this.players.filter((p) => p.seat <= seat);
@@ -108,7 +109,7 @@ export class HandEngine {
     this.currentBet = this.bb;
     this.minRaise = this.bb;
 
-    // Karten austeilen, beginnend links vom Button
+    // Deal the cards, starting left of the button
     for (let r = 0; r < 2; r++) {
       let seat = this.buttonSeat;
       for (let i = 0; i < n; i++) {
@@ -145,11 +146,11 @@ export class HandEngine {
   /**
    * @param {number} seat
    * @param {'fold'|'check'|'call'|'raise'|'allin'} type
-   * @param {number} [amount] Gesamteinsatz in dieser Setzrunde bei raise
+   * @param {number} [amount] total bet for this betting round when raising
    */
   act(seat, type, amount) {
     const legal = this.legalActions(seat);
-    if (!legal) throw new Error('Du bist nicht am Zug');
+    if (!legal) throw new UserError('notYourTurn');
     const p = this.player(seat);
 
     if (type === 'allin') {
@@ -165,21 +166,21 @@ export class HandEngine {
         event = { type: 'fold' };
         break;
       case 'check':
-        if (!legal.canCheck) throw new Error('Check nicht möglich');
+        if (!legal.canCheck) throw new UserError('cannotCheck');
         event = { type: 'check' };
         break;
       case 'call': {
-        if (!legal.canCall) throw new Error('Nichts zu callen');
+        if (!legal.canCall) throw new UserError('nothingToCall');
         this.#put(p, legal.toCall);
         event = { type: 'call', amount: p.bet };
         break;
       }
       case 'raise': {
-        if (!legal.canRaise) throw new Error('Erhöhen nicht möglich');
+        if (!legal.canRaise) throw new UserError('cannotRaise');
         amount = Math.floor(Number(amount));
-        if (!Number.isFinite(amount)) throw new Error('Ungültiger Betrag');
+        if (!Number.isFinite(amount)) throw new UserError('invalidAmount');
         if (amount > legal.maxTo) amount = legal.maxTo;
-        if (amount < legal.minTo) throw new Error(`Mindestens ${legal.minTo}`);
+        if (amount < legal.minTo) throw new UserError('minAmount', { min: legal.minTo });
         const raiseSize = amount - this.currentBet;
         const wasBet = this.currentBet === 0;
         this.#put(p, amount - p.bet);
@@ -193,7 +194,7 @@ export class HandEngine {
         break;
       }
       default:
-        throw new Error('Unbekannte Aktion');
+        throw new UserError('unknownAction');
     }
     if (p.allIn && type !== 'fold') event.allIn = true;
     p.canRaise = false;
@@ -248,11 +249,11 @@ export class HandEngine {
     const active = this.active;
     const able = active.filter((p) => !p.allIn);
     this.runout = able.length < 2;
-    // Bei All-in ohne weitere Setzmöglichkeit werden die Karten offen gelegt.
+    // When everyone is all-in and no more betting is possible, the cards are turned face up.
     if (this.runout) for (const p of active) this.revealed.add(p.seat);
   }
 
-  /** Nächste Straße austeilen bzw. Showdown. Liefert true, wenn sich etwas geändert hat. */
+  /** Deal the next street or go to showdown. Returns true if something changed. */
   advance() {
     if (this.phase !== 'roundComplete') return false;
     if (this.street === 'river') {
@@ -282,8 +283,8 @@ export class HandEngine {
     return true;
   }
 
-  // Hängt der Ausgang nur noch vom River ab? (Board mit 4 Karten, alle Hände offen)
-  // Es werden alle ungesehenen Karten als möglicher River durchgespielt.
+  // Does the outcome depend only on the river? (4-card board, all hands face up)
+  // Every unseen card is tried as the possible river.
   riverDecides() {
     if (this.board.length !== 4) return false;
     const active = this.active;
@@ -305,7 +306,7 @@ export class HandEngine {
     return false;
   }
 
-  // Rabbit Cam: die Board-Karten, die gekommen wären (inkl. Burn-Cards), ohne das Deck zu verändern
+  // Rabbit Cam: the board cards that would have come (incl. burn cards), without changing the deck
   rabbitCards() {
     const deck = this.deck.slice();
     const out = [];
@@ -336,7 +337,7 @@ export class HandEngine {
       if (pots.length) pots[pots.length - 1].amount += leftover;
       else pots.push({ amount: leftover, eligible: this.active.map((p) => p.seat) });
     }
-    // Pots mit identischen Berechtigten zusammenfassen (z. B. nur ein Berechtigter)
+    // Merge pots with identical eligible players (e.g. only one eligible player)
     const merged = [];
     for (const pot of pots) {
       const last = merged[merged.length - 1];
@@ -366,7 +367,7 @@ export class HandEngine {
     this.pots = [];
     this.results = {
       uncontested: true,
-      pots: [{ amount: total, winners: [winner.seat], shares: { [winner.seat]: total }, handName: null }],
+      pots: [{ amount: total, winners: [winner.seat], shares: { [winner.seat]: total }, hand: null }],
       winnings: { [winner.seat]: total },
       hands: {},
     };
@@ -381,7 +382,7 @@ export class HandEngine {
     const hands = {};
     for (const p of active) {
       const e = evaluateBest([...p.cards, ...this.board]);
-      hands[p.seat] = { score: e.score, name: e.name, cards: e.cards, cat: e.cat };
+      hands[p.seat] = { score: e.score, cards: e.cards, cat: e.cat, tb: e.tb };
     }
     const pots = this.computePots();
     const winnings = {};
@@ -399,14 +400,15 @@ export class HandEngine {
         winnings[s] = (winnings[s] || 0) + amt;
         this.player(s).stack += amt;
       }
-      potResults.push({ amount: pot.amount, winners, shares, handName: hands[winners[0]].name, eligible: pot.eligible });
+      const { cat, tb } = hands[winners[0]];
+      potResults.push({ amount: pot.amount, winners, shares, hand: { cat, tb }, eligible: pot.eligible });
     }
     this.pots = [];
     this.results = { uncontested: false, pots: potResults, winnings, hands };
     this.phase = 'complete';
   }
 
-  // Öffentliche Sicht für einen Betrachter (seat = eigener Platz oder null)
+  // Public view for one viewer (seat = the viewer's own seat or null)
   view(viewerSeat) {
     const players = {};
     for (const p of this.players) {
@@ -444,7 +446,7 @@ export class HandEngine {
             uncontested: this.results.uncontested,
             pots: this.results.pots,
             winnings: this.results.winnings,
-            hands: Object.fromEntries(Object.entries(this.results.hands).map(([s, h]) => [s, { name: h.name, cards: h.cards }])),
+            hands: Object.fromEntries(Object.entries(this.results.hands).map(([s, h]) => [s, { cat: h.cat, tb: h.tb, cards: h.cards }])),
           }
         : null,
     };

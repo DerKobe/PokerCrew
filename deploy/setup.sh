@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Einrichtung auf einem frischen Ubuntu/Debian-Server.
+# Setup on a fresh Ubuntu/Debian server.
 #
-#   sudo bash deploy/setup.sh                      -> https://<IP>.sslip.io (keine Domain nötig)
-#   sudo bash deploy/setup.sh poker.meinedomain.de -> eigene Domain (A-Record muss auf den Server zeigen)
-#   sudo bash deploy/setup.sh --turn [domain]      -> zusätzlich eigener TURN-Server für Voice
+#   sudo bash deploy/setup.sh                    -> https://<IP>.sslip.io (no domain needed)
+#   sudo bash deploy/setup.sh poker.example.com  -> your own domain (A record must point to the server)
+#   sudo bash deploy/setup.sh --turn [domain]    -> additionally your own TURN server for voice
 #
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -18,13 +18,13 @@ for a in "$@"; do
 done
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "» Installiere Docker …"
+  echo "» Installing Docker …"
   curl -fsSL https://get.docker.com | sh
 fi
 
-# Kleine Server (512 MB RAM) brauchen etwas Swap für den Docker-Build
+# Small servers (512 MB RAM) need some swap for the Docker build
 if [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -lt 1500000 ] && ! swapon --show | grep -q .; then
-  echo "» Lege 1 GB Swap an …"
+  echo "» Creating 1 GB of swap …"
   fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile
   grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
@@ -52,7 +52,7 @@ fi
   fi
 } > .env
 
-echo "» Baue und starte PokerCrew …"
+echo "» Building and starting PokerCrew …"
 if [ "$TURN" = 1 ]; then
   docker compose --profile turn up -d --build
 else
@@ -60,7 +60,7 @@ else
 fi
 
 echo
-echo "✔ Fertig! In ca. 30 Sekunden erreichbar unter: https://$DOMAIN"
-echo "  Firewall: TCP 80 und 443 müssen offen sein."
-[ "$TURN" = 1 ] && echo "  TURN:     zusätzlich UDP+TCP 3478 und UDP 49160-49200 öffnen."
+echo "✔ Done! Reachable in about 30 seconds at: https://$DOMAIN"
+echo "  Firewall: TCP 80 and 443 must be open."
+[ "$TURN" = 1 ] && echo "  TURN:     also open UDP+TCP 3478 and UDP 49160-49200."
 exit 0

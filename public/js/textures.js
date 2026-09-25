@@ -1,4 +1,4 @@
-// Prozedural erzeugte Canvas-Texturen für Tisch, Chips und Karten.
+// Procedurally generated canvas textures for the table, chips and cards.
 import * as THREE from 'three';
 
 const SERIF = '"Playfair Display", Georgia, "Times New Roman", serif';
@@ -28,7 +28,7 @@ function toTexture(c, { srgb = true, repeat = null } = {}) {
   return t;
 }
 
-// Deterministischer Zufall
+// Deterministic randomness
 export function rng(seed = 1) {
   let s = seed >>> 0 || 1;
   return () => {
@@ -52,7 +52,7 @@ function addNoise(ctx, w, h, amount, seed = 7, mono = true) {
   ctx.putImageData(img, 0, 0);
 }
 
-// ---------------------------------------------------------------- Farbsymbole
+// ---------------------------------------------------------------- Suit symbols
 
 export function suitPath(ctx, suit, x, y, s) {
   ctx.save();
@@ -122,13 +122,13 @@ export function drawSuit(ctx, suit, x, y, s, color, flip = false) {
   ctx.restore();
 }
 
-// ---------------------------------------------------------------- Tisch
+// ---------------------------------------------------------------- Table
 
 export const TABLE = {
-  a: 5.0, // halbe Länge des geraden Stücks
-  r: 4.2, // Radius der Rundungen (Filz)
-  race: 0.6, // Holzbahn
-  rail: 1.25, // Polsterbande
+  a: 5.0, // half length of the straight section
+  r: 4.2, // radius of the rounded ends (felt)
+  race: 0.6, // wooden racetrack
+  rail: 1.25, // padded rail
 };
 export const FELT_W = 2 * (TABLE.a + TABLE.r);
 export const FELT_D = 2 * TABLE.r;
@@ -143,13 +143,13 @@ function stadiumPath(ctx, cx, cy, a, r) {
   ctx.closePath();
 }
 
-// Der Aufdruck ist tischfest: Im Hochformat dreht er sich mit dem Tisch (wie Board und Pot).
+// The print is fixed to the table: in portrait it rotates with the table (like board and pot).
 export function feltTexture(color = '#0f6b43') {
   const W = 2048;
   const H = Math.round((W * FELT_D) / FELT_W);
   const c = canvas(W, H);
   const ctx = c.getContext('2d');
-  const k = W / FELT_W; // Pixel pro Einheit
+  const k = W / FELT_W; // pixels per unit
   const cx = W / 2;
   const cy = H / 2;
 
@@ -163,7 +163,7 @@ export function feltTexture(color = '#0f6b43') {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
-  // Linie für die Einsätze (folgt der Tischform, also lokal)
+  // Betting line (follows the table shape, so local)
   ctx.save();
   stadiumPath(ctx, cx, cy, TABLE.a * k, (TABLE.r - 1.95) * k);
   ctx.strokeStyle = 'rgba(236, 214, 150, 0.30)';
@@ -175,11 +175,11 @@ export function feltTexture(color = '#0f6b43') {
   ctx.stroke();
   ctx.restore();
 
-  // Ab hier in Tisch-Koordinaten (1 = eine Tischeinheit)
+  // From here on in table coordinates (1 = one table unit)
   ctx.save();
   ctx.setTransform(k, 0, 0, k, cx, cy);
 
-  // Kartenplätze für das Board
+  // Card slots for the board
   ctx.strokeStyle = 'rgba(236, 214, 150, 0.16)';
   ctx.lineWidth = 2.5 / k;
   for (let i = 0; i < 5; i++) {
@@ -187,7 +187,7 @@ export function feltTexture(color = '#0f6b43') {
     ctx.stroke();
   }
 
-  // Logo zwischen Board und eigenem Platz: „Poker Crew" mit „since 1999" darunter
+  // Logo between the board and your own seat: "Poker Crew" with "since 1999" below
   ctx.save();
   ctx.translate(0, 0.98);
   ctx.scale(1 / k, 1 / k);
@@ -201,7 +201,7 @@ export function feltTexture(color = '#0f6b43') {
   ctx.fillText('Poker Crew', 0, 0);
   ['s', 'h'].forEach((su, i) => drawSuit(ctx, su, -tw / 2 - 0.3 * k - i * 0.34 * k, 0, 0.26 * k, 'rgba(240, 222, 170, 0.2)'));
   ['d', 'c'].forEach((su, i) => drawSuit(ctx, su, tw / 2 + 0.3 * k + i * 0.34 * k, 0, 0.26 * k, 'rgba(240, 222, 170, 0.2)'));
-  // „since 1999" mit feinen Zierlinien links und rechts
+  // "since 1999" with thin decorative lines left and right
   ctx.font = `italic 600 ${0.19 * k}px ${SERIF}`;
   ctx.letterSpacing = `${0.03 * k}px`;
   const sy = 0.4 * k;
@@ -212,7 +212,7 @@ export function feltTexture(color = '#0f6b43') {
   ctx.fillRect(sw / 2 + 0.17 * k, sy - 1, 0.45 * k, 2);
   ctx.restore();
 
-  // Schriftzug oberhalb des Pots
+  // Lettering above the pot
   ctx.save();
   ctx.translate(0, -(TABLE.r - 1.95) - 0.26);
   ctx.scale(1 / k, 1 / k);
@@ -236,7 +236,7 @@ export function feltBumpTexture() {
   ctx.fillStyle = '#808080';
   ctx.fillRect(0, 0, 512, 512);
   addNoise(ctx, 512, 512, 90, 11);
-  // feine Fasern
+  // fine fibres
   const r = rng(5);
   ctx.globalAlpha = 0.08;
   for (let i = 0; i < 2500; i++) {
@@ -260,7 +260,7 @@ export function woodTexture() {
   const r = rng(42);
   ctx.fillStyle = '#5b2a14';
   ctx.fillRect(0, 0, W, H);
-  // Maserung: viele leicht gewellte Linien
+  // Grain: many slightly wavy lines
   for (let i = 0; i < 260; i++) {
     const y0 = r() * H;
     const amp = 4 + r() * 18;
@@ -277,7 +277,7 @@ export function woodTexture() {
     }
     ctx.stroke();
   }
-  // Glanzverlauf
+  // Gloss gradient
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, 'rgba(255,190,120,0.06)');
   g.addColorStop(0.5, 'rgba(0,0,0,0.06)');
@@ -295,7 +295,7 @@ export function leatherBumpTexture() {
   ctx.fillStyle = '#7a7a7a';
   ctx.fillRect(0, 0, S, S);
   const r = rng(77);
-  // Narbung: viele kleine unregelmäßige Zellen
+  // Leather grain: many small irregular cells
   for (let i = 0; i < 2600; i++) {
     const x = r() * S;
     const y = r() * S;
@@ -366,7 +366,7 @@ export function chipTopTexture(d) {
   ctx.fillStyle = d.color;
   ctx.fillRect(0, 0, S, S);
 
-  // Randeinlagen (8 Stück)
+  // Edge inserts (8)
   ctx.fillStyle = d.accent;
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
@@ -384,7 +384,7 @@ export function chipTopTexture(d) {
   ctx.arc(m, m, m * 0.74, 0, Math.PI * 2);
   ctx.stroke();
   ctx.globalAlpha = 1;
-  // kleine Rauten zwischen den Einlagen
+  // small diamonds between the inserts
   for (let i = 0; i < 8; i++) {
     const a = ((i + 0.5) / 8) * Math.PI * 2;
     ctx.save();
@@ -408,7 +408,7 @@ export function chipTopTexture(d) {
   ctx.beginPath();
   ctx.arc(m, m, m * 0.52, 0, Math.PI * 2);
   ctx.stroke();
-  // Wert
+  // Value
   ctx.fillStyle = d.ink;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -435,7 +435,7 @@ export function chipSideTexture(d) {
     const x = (i / 8) * W + W / 16;
     ctx.fillRect(x - W * 0.027, 0, W * 0.054, H);
   }
-  // Kante oben/unten abdunkeln (Fase)
+  // Darken the top/bottom edge (bevel)
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, 'rgba(0,0,0,0.45)');
   g.addColorStop(0.18, 'rgba(0,0,0,0)');
@@ -446,7 +446,7 @@ export function chipSideTexture(d) {
   return toTexture(c);
 }
 
-// ---------------------------------------------------------------- Karten
+// ---------------------------------------------------------------- Cards
 
 export const CARD_W = 400;
 export const CARD_H = 560;
@@ -478,7 +478,7 @@ const PIPS = {
 
 const RANK_LABEL = { T: '10', J: 'J', Q: 'Q', K: 'K', A: 'A' };
 
-// Figuren der Bildkarten (obere Hälfte; wird wie bei echten Hofkarten gespiegelt)
+// Court card figures (upper half; mirrored like real court cards)
 const courtArt = {};
 export function preloadCardArt() {
   const load = (r) =>
@@ -498,8 +498,8 @@ const INDEX_FONT_LETTER = '"Roboto Slab", Rockwell, "Courier New", serif';
 const INDEX_FONT_NUMBER = 'Inter, "Helvetica Neue", Arial, sans-serif';
 const FRAME_COLOR = '#2f8fc6';
 
-// Jumbo-Index-Layout (wie Copag/Modiano-Pokerkarten): große Indizes in allen vier Ecken,
-// dünner blauer Rahmen in der Mitte mit kleinen Pips bzw. der Hofkarten-Figur.
+// Jumbo index layout (like Copag/Modiano poker cards): large indices in all four corners,
+// thin blue frame in the middle with small pips or the court figure.
 export function cardFaceCanvas(card) {
   const [r, s] = card;
   const c = canvas(CARD_W, CARD_H);
@@ -512,7 +512,7 @@ export function cardFaceCanvas(card) {
   ctx.fillStyle = '#fdfdfb';
   ctx.fillRect(0, 0, W, H);
 
-  // Eck-Index: Rang oben, Farbe darunter; unten dasselbe um 180° gedreht
+  // Corner index: rank on top, suit below; the bottom one is the same rotated by 180°
   const corner = (cx) => {
     ctx.fillStyle = col;
     ctx.textAlign = 'center';
@@ -537,14 +537,14 @@ export function cardFaceCanvas(card) {
     ctx.restore();
   }
 
-  // Mittelrahmen
+  // Centre frame
   const fx = 92;
   const fy = 108;
   const fw = W - 184;
   const fh = H - 216;
   const art = courtArt[r];
   if (art) {
-    // obere Hälfte + um 180° gedrehte untere Hälfte
+    // upper half + lower half rotated by 180°
     ctx.save();
     ctx.beginPath();
     ctx.rect(fx, fy, fw, fh);
@@ -560,14 +560,14 @@ export function cardFaceCanvas(card) {
     ctx.translate(-(fx + fw / 2), -(fy + half));
     drawHalf();
     ctx.restore();
-    // Trennlinie zwischen den Hälften
+    // divider between the halves
     ctx.strokeStyle = 'rgba(20, 20, 30, 0.55)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(fx, fy + fh / 2);
     ctx.lineTo(fx + fw, fy + fh / 2);
     ctx.stroke();
-    // kleine Farbsymbole im Rahmen (mit weißem Hof für Lesbarkeit)
+    // small suit symbols inside the frame (with a white halo for readability)
     const smallPip = (x, y, flip) => {
       ctx.save();
       ctx.shadowColor = '#ffffff';
@@ -578,7 +578,7 @@ export function cardFaceCanvas(card) {
     smallPip(fx + 22, fy + 26, false);
     smallPip(fx + fw - 22, fy + fh - 26, true);
   } else if (!PIPS[label] && r !== 'A') {
-    // Fallback ohne Bild: großer Buchstabe
+    // fallback without image: large letter
     ctx.fillStyle = col;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -625,7 +625,7 @@ export function cardBackTexture() {
   ctx.fillStyle = g;
   roundRect(ctx, m, m, W - 2 * m, H - 2 * m, 18);
   ctx.fill();
-  // Rautengitter
+  // Diamond lattice
   ctx.save();
   roundRect(ctx, m + 10, m + 10, W - 2 * m - 20, H - 2 * m - 20, 12);
   ctx.clip();
@@ -646,7 +646,7 @@ export function cardBackTexture() {
   ctx.lineWidth = 4;
   roundRect(ctx, m + 10, m + 10, W - 2 * m - 20, H - 2 * m - 20, 12);
   ctx.stroke();
-  // Medaillon
+  // Medallion
   ctx.fillStyle = '#6d0a1c';
   ctx.beginPath();
   ctx.ellipse(W / 2, H / 2, 108, 108, 0, 0, Math.PI * 2);

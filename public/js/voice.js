@@ -1,7 +1,7 @@
-// Voice- und Videochat: WebRTC-Mesh, Signaling über Socket.IO.
-// Wer neu beitritt, baut zu allen bestehenden Teilnehmern die Verbindung auf (kein Glare).
-// Jede Verbindung hat von Anfang an einen Audio- und einen Video-Kanal; Mikro und Kamera
-// werden danach nur per replaceTrack ein-/ausgeschaltet (keine Neuverhandlung nötig).
+// Voice and video chat: WebRTC mesh, signaling via Socket.IO.
+// Whoever joins connects to all existing participants (no glare).
+// Every connection has an audio and a video transceiver from the start; mic and camera
+// are then switched on/off via replaceTrack only (no renegotiation needed).
 
 const VIDEO_CONSTRAINTS = {
   width: { ideal: 320 },
@@ -37,7 +37,7 @@ export class Voice {
     socket.on('voice-signal', (msg) => this.#onSignal(msg));
     socket.on('voice-left', ({ id }) => this.#closePeer(id));
     socket.on('connect', () => {
-      // Nach einem Reconnect: neu verbinden (neue Socket-ID)
+      // After a reconnect: join again (new socket id)
       if (this.joined) {
         for (const id of [...this.peers.keys()]) this.#closePeer(id);
         this.socket.emit('voice-join', this.#status());
@@ -69,17 +69,17 @@ export class Voice {
         src.connect(this.localAnalyser);
       }
     } catch (err) {
-      console.warn('Kein Mikrofon:', err);
+      console.warn('No microphone:', err);
       this.micError = !window.isSecureContext
-        ? 'Mikrofon braucht HTTPS'
+        ? 'micHttps'
         : err?.name === 'NotAllowedError'
-          ? 'Mikrofon-Zugriff verweigert'
-          : 'Kein Mikrofon gefunden';
+          ? 'micDenied'
+          : 'micMissing';
     }
-    // Kamera wieder einschalten, wenn sie beim letzten Mal an war
+    // Turn the camera back on if it was on last time
     if (localStorage.getItem('pc.video') === '1') await this.#startCamera();
     this.joined = true;
-    // Ist der Socket noch nicht verbunden, übernimmt der 'connect'-Handler den Beitritt
+    // If the socket is not connected yet, the 'connect' handler takes care of joining
     if (this.socket.connected) this.socket.emit('voice-join', this.#status());
     this.onChange();
   }
@@ -120,16 +120,16 @@ export class Voice {
       const stream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS, audio: false });
       this.videoTrack = stream.getVideoTracks()[0];
       this.camError = null;
-      // Kamera wird extern beendet (z. B. Berechtigung entzogen)
+      // Camera stopped externally (e.g. permission revoked)
       this.videoTrack.addEventListener('ended', () => this.setVideo(false));
       this.localVideo = this.#videoElement(this.localVideo);
       this.localVideo.srcObject = new MediaStream([this.videoTrack]);
       this.localVideo.play().catch(() => {});
       for (const p of this.peers.values()) this.#sendVideo(p.pc);
     } catch (err) {
-      console.warn('Keine Kamera:', err);
+      console.warn('No camera:', err);
       this.videoTrack = null;
-      this.camError = err?.name === 'NotAllowedError' ? 'Kamera-Zugriff verweigert' : 'Keine Kamera gefunden';
+      this.camError = err?.name === 'NotAllowedError' ? 'camDenied' : 'camMissing';
     }
   }
 
@@ -157,7 +157,7 @@ export class Voice {
         await tr.sender.setParameters(params);
       }
     } catch (err) {
-      console.warn('Video senden fehlgeschlagen', err);
+      console.warn('Sending video failed', err);
     }
   }
 
@@ -166,12 +166,12 @@ export class Voice {
     const v = document.createElement('video');
     v.autoplay = true;
     v.playsInline = true;
-    v.muted = true; // Ton läuft separat über das Audio-Element
+    v.muted = true; // sound plays separately through the audio element
     this.mediaRoot.appendChild(v);
     return v;
   }
 
-  /** Video-Element eines Teilnehmers ('self' = eigene Kamera) oder null */
+  /** Video element of a participant ('self' = own camera) or null */
   videoFor(id) {
     if (id === 'self') return this.videoTrack ? this.localVideo : null;
     return this.peers.get(id)?.video || null;
@@ -264,12 +264,12 @@ export class Voice {
         if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(candidate).catch(() => {});
         else peer.pendingCandidates.push(candidate);
       } else if (candidate) {
-        // Kandidat kam vor dem Offer an
+        // candidate arrived before the offer
         peer = this.#createPeer(from);
         peer.pendingCandidates.push(candidate);
       }
     } catch (err) {
-      console.warn('Voice-Signal-Fehler', err);
+      console.warn('Voice signaling error', err);
     }
   }
 

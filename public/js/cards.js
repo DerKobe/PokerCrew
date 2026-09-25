@@ -1,4 +1,4 @@
-// 3D-Spielkarten mit abgerundeten Ecken, Kante und getrennten Vorder-/Rückseiten.
+// 3D playing cards with rounded corners, an edge and separate front/back faces.
 import * as THREE from 'three';
 import { cardFaceTexture, cardBackTexture } from './textures.js';
 
@@ -44,8 +44,8 @@ function init() {
     curveSegments: 8,
   });
   edgeGeo.translate(0, 0, -THICK / 2);
-  // Nur die Seitenwände behalten: Die Deckflächen lägen fast deckungsgleich unter
-  // Vorder-/Rückseite und würden flimmern (Z-Fighting).
+  // Keep only the side walls: the cap faces would lie almost exactly under the
+  // front/back faces and flicker (z-fighting).
   edgeGeo.groups = edgeGeo.groups.filter((g) => g.materialIndex === 1);
   backMat = new THREE.MeshStandardMaterial({ map: cardBackTexture(), roughness: 0.42, metalness: 0 });
   edgeMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d6, roughness: 0.7 });
@@ -53,8 +53,8 @@ function init() {
 }
 
 /**
- * Karte als Gruppe. Lokale +Z-Richtung = Vorderseite.
- * card.userData.setFace(code) setzt/ändert das Motiv.
+ * Card as a group. Local +Z = front face.
+ * card.userData.setFace(code) sets/changes the face.
  */
 export function createCard(code = null) {
   init();
@@ -70,11 +70,11 @@ export function createCard(code = null) {
     m.castShadow = true;
     m.receiveShadow = true;
   }
-  // Goldener Rahmen für Gewinnerkarten
+  // Gold frame for winning cards
   const glow = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xffc94d, toneMapped: false }));
   glow.position.z = THICK / 2;
   glow.visible = false;
-  // Solange die Karte unbekannt ist, zeigt auch die Vorderseite den Rücken
+  // While the card is unknown, the front shows the back design too
   front.visible = false;
   g.add(glow, front, back, edge);
   g.userData = {
@@ -93,7 +93,7 @@ export function createCard(code = null) {
     },
     setHighlight(mode) {
       // mode: null | 'win' | 'dim' | 'rabbit'
-      // Rahmen: gold für Gewinnerkarten, blau für Rabbit-Cam-Karten
+      // frame: gold for winning cards, blue for Rabbit Cam cards
       glow.visible = mode === 'win' || mode === 'rabbit';
       glow.material.color.set(mode === 'rabbit' ? 0x6fa8ff : 0xffc94d);
       if (mode === 'rabbit') {
@@ -115,7 +115,7 @@ export function createCard(code = null) {
   return g;
 }
 
-// Orientierung: flach auf dem Tisch, Oberkante zeigt in Richtung -Z gedreht um yaw.
+// Orientation: flat on the table, top edge pointing towards -Z rotated by yaw.
 const _qx = new THREE.Quaternion();
 const _qy = new THREE.Quaternion();
 const X = new THREE.Vector3(1, 0, 0);
@@ -124,7 +124,7 @@ export function cardQuat(yaw = 0, faceUp = true, tilt = 0, out = new THREE.Quate
   _qy.setFromAxisAngle(Y, yaw);
   _qx.setFromAxisAngle(X, faceUp ? -Math.PI / 2 + tilt : Math.PI / 2 - tilt);
   if (!faceUp) {
-    // Rückseite oben, aber gleiche Ausrichtung der Oberkante
+    // back face up, but the same top-edge orientation
     const qz = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
     return out.copy(_qy).multiply(_qx).multiply(qz);
   }

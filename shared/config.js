@@ -1,10 +1,10 @@
-// Gemeinsame Turnier-Konfiguration (wird von Server und Browser importiert).
+// Shared tournament configuration (imported by the server and the browser).
 
 export const MAX_SEATS = 5;
 
-// Standardstruktur: 5 Spieler x 10.000 Chips, 10-Minuten-Level.
-// Faustregel: Ein Turnier endet grob, wenn der Big Blind ~1/30 aller Chips erreicht.
-// Bei 50.000 Chips im Spiel ist das Level 7 (1.000/2.000) nach ~60 Minuten.
+// Default structure: 5 players x 10,000 chips, 10-minute levels.
+// Rule of thumb: a tournament roughly ends once the big blind reaches ~1/30 of all chips.
+// With 50,000 chips in play that is level 7 (1,000/2,000) after ~60 minutes.
 export const DEFAULT_LEVELS = [
   { sb: 50, bb: 100, ante: 0 },
   { sb: 100, bb: 200, ante: 0 },
@@ -20,10 +20,11 @@ export const DEFAULT_LEVELS = [
   { sb: 10000, bb: 20000, ante: 0 },
 ];
 
+// Presets for the level length; `minutes` is the rough tournament length with 5 players
 export const PRESETS = [
-  { id: 'turbo', label: 'Turbo (~40 Min)', levelMinutes: 7 },
-  { id: 'standard', label: 'Standard (~60 Min)', levelMinutes: 10 },
-  { id: 'relaxed', label: 'Gemütlich (~90 Min)', levelMinutes: 15 },
+  { id: 'turbo', minutes: 40, levelMinutes: 7 },
+  { id: 'standard', minutes: 60, levelMinutes: 10 },
+  { id: 'relaxed', minutes: 90, levelMinutes: 15 },
 ];
 
 export function defaultConfig() {
@@ -66,7 +67,7 @@ function roundNice(x) {
   return Math.round(x / step) * step;
 }
 
-// Level i (0-basiert); nach dem Ende der Liste steigen die Blinds automatisch um 50 % pro Level.
+// Level i (0-based); after the end of the list the blinds rise automatically by 50 % per level.
 export function levelAt(config, i) {
   const levels = config.levels;
   if (i < levels.length) return levels[i];
@@ -76,7 +77,7 @@ export function levelAt(config, i) {
   return { sb: roundNice((last.sb / last.bb) * bb), bb, ante: last.ante ? roundNice(last.ante * f) : 0 };
 }
 
-// Grobe Schätzung der Turnierdauer in Minuten.
+// Rough estimate of the tournament length in minutes.
 export function estimateMinutes(config, players = MAX_SEATS) {
   const total = config.startingStack * Math.max(2, players);
   for (let i = 0; i < 200; i++) {

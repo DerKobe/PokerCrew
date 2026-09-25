@@ -25,7 +25,7 @@ class FakeSocket extends EventEmitter {
 
 const fakeIo = { emit() {} };
 
-test('Komplettes Turnier mit 5 Spielern endet mit einem Sieger', async () => {
+test('A full tournament with 5 players ends with a winner', async () => {
   const s = new Session(fakeIo, {
     delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, disconnected: 1 },
   });
@@ -37,13 +37,13 @@ test('Komplettes Turnier mit 5 Spielern endet mit einem Sieger', async () => {
   socks.forEach((so, i) => so.send('sit', { seat: i, name: `P${i}` }));
   assert.equal(s.seats.filter(Boolean).length, 5);
 
-  // Zuschauer darf nicht starten
+  // A spectator may not start
   spectator.send('start');
   assert.equal(s.phase, 'lobby');
   socks[0].send('start');
   assert.equal(s.phase, 'running');
 
-  // Zuschauer sieht keine Hole Cards, Spieler sieht die eigenen
+  // A spectator sees no hole cards, a player sees their own
   const st = spectator.lastState;
   assert.ok(Object.values(st.hand.players).every((p) => p.cards === null));
   const me = socks[0].lastState;
@@ -73,7 +73,7 @@ test('Komplettes Turnier mit 5 Spielern endet mit einem Sieger', async () => {
   s.close();
 });
 
-test('Zeitüberschreitung: automatisch checken/passen, Spieler wird abwesend', async () => {
+test('Timeout: automatic check/fold, player is marked away', async () => {
   const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, disconnected: 1 } });
   const a = new FakeSocket('a', 'token-timeout-a');
   const b = new FakeSocket('b', 'token-timeout-b');
@@ -81,14 +81,14 @@ test('Zeitüberschreitung: automatisch checken/passen, Spieler wird abwesend', a
   s.connect(b);
   a.send('sit', { seat: 1, name: 'A' });
   b.send('sit', { seat: 3, name: 'B' });
-  s.config.actionSeconds = 0.005; // direkt gesetzt, umgeht die Validierung (min. 10 s)
+  s.config.actionSeconds = 0.005; // set directly, bypasses validation (min. 10 s)
   a.send('start');
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(s.phase, 'running');
-  assert.ok(s.handCount > 3, `mehrere Hände gespielt (${s.handCount})`);
-  assert.ok(s.log.some((e) => e.text.includes('passt')));
+  assert.ok(s.handCount > 3, `several hands played (${s.handCount})`);
+  assert.ok(s.log.some((e) => e.key === 'fold' || e.key === 'check'));
   assert.ok(s.seats[1].away && s.seats[3].away);
-  // Zurückmelden hebt Abwesenheit auf
+  // Coming back clears the away state
   a.send('back');
   assert.equal(s.seats[1].away, false);
   const total = s.seats[1].stack + s.seats[3].stack + (s.hand ? s.hand.players.reduce((x, p) => x + p.committed, 0) : 0);
@@ -96,7 +96,7 @@ test('Zeitüberschreitung: automatisch checken/passen, Spieler wird abwesend', a
   s.close();
 });
 
-test('Rabbit Cam: 5-Sekunden-Fenster nach vorzeitigem Handende', async () => {
+test('Rabbit Cam: 5-second window after a hand ends early', async () => {
   const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 80, rabbitShow: 80 } });
   const socks = [new FakeSocket('ra', 'token-rabbit-a'), new FakeSocket('rb', 'token-rabbit-b'), new FakeSocket('rs', 'token-rabbit-spec')];
   socks.forEach((so) => s.connect(so));
@@ -105,33 +105,33 @@ test('Rabbit Cam: 5-Sekunden-Fenster nach vorzeitigem Handende', async () => {
   socks[0].send('start');
   const bySeat = { 0: socks[0], 2: socks[1] };
 
-  // Hand 1: sofort passen -> Fenster offen
+  // Hand 1: fold right away -> window open
   bySeat[s.hand.toAct].send('action', { type: 'fold' });
   assert.equal(socks[0].lastState.rabbit.open, true);
   assert.equal(socks[0].lastState.rabbit.cards, null);
-  socks[2].send('rabbit'); // Zuschauer darf nicht
+  socks[2].send('rabbit'); // spectators may not
   assert.equal(s.rabbit.cards, null);
   socks[1].send('rabbit');
   assert.equal(s.rabbit.cards.length, 5, 'Preflop-Fold: komplettes Board');
   assert.equal(socks[0].lastState.rabbit.by, 'B');
-  assert.deepEqual(socks[2].lastState.rabbit.cards, s.rabbit.cards, 'Zuschauer sehen die Karten');
-  assert.ok(s.log.some((e) => e.text.includes('Rabbit Cam')));
+  assert.deepEqual(socks[2].lastState.rabbit.cards, s.rabbit.cards, 'spectators see the cards');
+  assert.ok(s.log.some((e) => e.key === 'rabbit' && e.p.cards.length > 0));
   const hand1 = s.handCount;
   await new Promise((r) => setTimeout(r, 150));
-  assert.equal(s.handCount, hand1 + 1, 'nach der Anzeige geht es weiter');
+  assert.equal(s.handCount, hand1 + 1, 'play continues after the display');
   assert.equal(socks[0].lastState.rabbit, null);
 
-  // Hand 2: ohne Klick -> nach dem Fenster normal weiter
+  // Hand 2: no click -> play continues normally after the window
   bySeat[s.hand.toAct].send('action', { type: 'fold' });
   assert.equal(s.rabbit.cards, null);
   await new Promise((r) => setTimeout(r, 130));
   assert.equal(s.handCount, hand1 + 2);
-  socks[0].send('rabbit'); // zu spät / neue Hand -> nichts passiert
+  socks[0].send('rabbit'); // too late / new hand -> nothing happens
   assert.equal(s.rabbit, null);
   s.close();
 });
 
-test('All-in-Runout: Board wird erst auf Klick aufgedeckt, Fallback nach Timeout', async () => {
+test('All-in runout: the board is only revealed on click, fallback after a timeout', async () => {
   const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 5000, uncontested: 1, rabbitWindow: 1, revealTimeout: 200, dramatic: 1 } });
   const socks = [new FakeSocket('va', 'token-reveal-a'), new FakeSocket('vb', 'token-reveal-b'), new FakeSocket('vs', 'token-reveal-spec')];
   socks.forEach((so) => s.connect(so));
@@ -143,18 +143,18 @@ test('All-in-Runout: Board wird erst auf Klick aufgedeckt, Fallback nach Timeout
   bySeat[s.hand.toAct].send('action', { type: 'call' });
   assert.equal(s.hand.runout, true);
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(s.hand.board.length, 0, 'nichts automatisch aufgedeckt');
+  assert.equal(s.hand.board.length, 0, 'nothing revealed automatically');
   assert.equal(socks[2].lastState.reveal.next, 'flop');
-  socks[2].send('reveal'); // Zuschauer darf nicht
+  socks[2].send('reveal'); // spectators may not
   assert.equal(s.hand.board.length, 0);
   socks[0].send('reveal');
   assert.equal(s.hand.board.length, 3);
   assert.equal(socks[0].lastState.reveal.next, 'turn');
-  assert.ok(s.log.some((e) => e.text === 'A deckt den Flop auf.'));
+  assert.ok(s.log.some((e) => e.key === 'reveal' && e.p.name === 'A' && e.p.street === 'flop'));
   socks[1].send('reveal');
   assert.equal(s.hand.board.length, 4);
   assert.equal(socks[0].lastState.reveal.next, 'river');
-  // niemand klickt -> Fallback deckt den River auf
+  // nobody clicks -> the fallback reveals the river
   await new Promise((r) => setTimeout(r, 260));
   assert.equal(s.hand.board.length, 5);
   assert.equal(typeof socks[0].lastState.drama, 'boolean');
@@ -162,7 +162,7 @@ test('All-in-Runout: Board wird erst auf Klick aufgedeckt, Fallback nach Timeout
   s.close();
 });
 
-test('Gadgets: Wahl in der Lobby, fest während des Turniers', () => {
+test('Gadgets: chosen in the lobby, locked during the tournament', () => {
   const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
   const a = new FakeSocket('ga', 'token-gadget-a');
   const b = new FakeSocket('gb', 'token-gadget-b');
@@ -172,14 +172,14 @@ test('Gadgets: Wahl in der Lobby, fest während des Turniers', () => {
   b.send('sit', { seat: 2, name: 'B', gadget: 'nonsense' });
   assert.equal(a.lastState.seats[0].gadget, 'whiskey');
   assert.equal(a.lastState.seats[2].gadget, null);
-  // Wechseln in der Lobby, Namensänderung behält das Gadget
+  // Switching in the lobby; changing the name keeps the gadget
   b.send('gadget', 'vape');
   b.send('sit', { seat: 2, name: 'Bea' });
   assert.equal(s.seats[2].gadget, 'vape');
   b.send('sit', { seat: 3, name: 'Bea' });
   assert.equal(s.seats[3].gadget, 'vape');
 
-  // Klick wird an die anderen weitergereicht (mit Drosselung)
+  // A click is relayed to the others (rate-limited)
   a.send('gadget-play');
   a.send('gadget-play');
   assert.equal(a.broadcasted.filter(([ev]) => ev === 'gadget').length, 1);
@@ -189,6 +189,6 @@ test('Gadgets: Wahl in der Lobby, fest während des Turniers', () => {
   assert.equal(s.phase, 'running');
   b.send('gadget', 'cigar');
   assert.equal(s.seats[3].gadget, 'vape');
-  assert.ok(b.received.some(([ev, d]) => ev === 'toast' && /nächsten Turnier/.test(d.text)));
+  assert.ok(b.received.some(([ev, d]) => ev === 'toast' && d.key === 'err.gadgetLocked'));
   s.close();
 });

@@ -1,7 +1,7 @@
 {
   "name": "pokercrew",
   "version": "1.0.0",
-  "description": "Selbst gehostetes No-Limit Hold’em Turnier für Freunde – three.js Tisch + Voicechat",
+  "description": "Self-hosted No-Limit Hold'em tournaments for friends – three.js table + voice chat",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

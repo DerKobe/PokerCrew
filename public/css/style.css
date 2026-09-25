@@ -80,14 +80,14 @@ kbd {
 .icon svg { width: 19px; height: 19px; fill: currentColor; }
 .icon.off { color: var(--red); }
 
-/* ------------------------------------------------ Topbar */
+/* ------------------------------------------------ Top bar */
 #topbar {
   position: fixed; top: 0; left: 0; right: 0;
   display: flex; align-items: center; gap: 16px;
   padding: 12px 16px;
   padding-top: max(12px, env(safe-area-inset-top));
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent);
-  z-index: 20;
+  z-index: 28; /* above the lobby and results overlays, so its tools (language, invite) stay usable */
   pointer-events: none;
 }
 #topbar > * { pointer-events: auto; }
@@ -104,6 +104,19 @@ kbd {
 .levelinfo .clock { font-weight: 700; }
 .levelinfo .paused { background: var(--red); color: white; font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.1em; }
 .tools { margin-left: auto; display: flex; gap: 8px; position: relative; }
+/* Language picker (top bar + splash) */
+.lang-pick {
+  display: inline-flex; align-self: center; padding: 3px; gap: 2px; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(10px);
+}
+.lang-pick button {
+  border: 0; background: none; color: var(--muted); font: 700 11px/1 Inter, sans-serif; letter-spacing: 0.08em;
+  padding: 7px 9px; border-radius: 999px; cursor: pointer;
+}
+.lang-pick button:hover { color: var(--ink); }
+.lang-pick button.active { background: rgba(230, 196, 106, 0.18); color: var(--gold); }
+.splash-card { position: relative; }
+.splash-card .lang-pick { position: absolute; top: 14px; right: 14px; }
 .menu {
   position: absolute; right: 0; top: 44px; min-width: 190px;
   background: var(--glass-2); border: 1px solid var(--line); border-radius: 12px; padding: 6px;
@@ -112,7 +125,7 @@ kbd {
 .menu button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 9px 12px; border-radius: 8px; }
 .menu button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
 
-/* ------------------------------------------------ Namensschilder */
+/* ------------------------------------------------ Nameplates */
 #plates { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 .plate {
   position: absolute; left: 0; top: 0;
@@ -136,7 +149,7 @@ kbd {
   transition: box-shadow 0.08s;
 }
 .plate .timer { position: absolute; inset: 0; transform: rotate(-90deg); z-index: 2; }
-/* Live-Video im Avatar: etwas größer, ragt über die Pille hinaus */
+/* Live video in the avatar: slightly larger, sticks out of the pill */
 .plate .avatar video { position: absolute; inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 50%; object-fit: cover; background: #111; }
 .plate .avatar video.mirror { transform: scaleX(-1); }
 .plate.has-video .avatar {
@@ -177,7 +190,7 @@ kbd {
 .plate.turn { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(230, 196, 106, 0.35), 0 0 28px rgba(230, 196, 106, 0.35); }
 .plate.me { background: linear-gradient(180deg, rgba(48, 40, 22, 0.92), rgba(18, 15, 10, 0.94)); border-color: rgba(230, 196, 106, 0.45); }
 .plate.folded, .plate.out { opacity: 0.55; }
-/* mit Video: nur Name/Stack dimmen, das Gesicht bleibt hell */
+/* with video: only dim name/stack, the face stays bright */
 .plate.has-video.folded, .plate.has-video.out { opacity: 1; }
 .plate.has-video.folded > :not(.avatar), .plate.has-video.out > :not(.avatar) { opacity: 0.55; }
 .plate.offline .avatar { filter: grayscale(1) brightness(0.6); }
@@ -264,7 +277,7 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 .chat input { flex: 1; background: transparent; border: 0; padding: 10px 12px; outline: none; user-select: text; }
 .chat button { background: none; border: 0; color: var(--gold); font-weight: 700; padding: 0 12px; }
 
-/* ------------------------------------------------ Aktionen */
+/* ------------------------------------------------ Actions */
 #strength {
   position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
   z-index: 11; pointer-events: none;
@@ -347,7 +360,7 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 #banner .amt { font-weight: 800; }
 #banner .hn { font: italic 700 18px var(--serif); color: var(--gold); margin-top: 2px; }
 
-/* ------------------------------------------------ All-in-Runout */
+/* ------------------------------------------------ All-in runout */
 #reveal {
   position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 17;
   animation: pop 0.2s ease-out;
@@ -364,7 +377,7 @@ body.in-lobby .plate.can-sit .sit { display: none; }
   position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
   background: rgba(29, 20, 6, 0.55); transform-origin: left; transition: transform 0.25s linear;
 }
-/* Theatralischer River: Ränder abdunkeln */
+/* Dramatic river: darken the edges */
 #vignette::after {
   content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease;
   background: radial-gradient(ellipse at 50% 50%, transparent 22%, rgba(0, 0, 0, 0.88) 78%);
@@ -486,7 +499,7 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .lobby-foot .who { color: var(--muted); }
 .lobby-foot .primary { margin-left: auto; }
 
-/* ------------------------------------------------ Ergebnisse */
+/* ------------------------------------------------ Results */
 #results { position: fixed; inset: 0; z-index: 26; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.45); }
 .results-card { width: min(440px, 100%); text-align: center; animation: pop 0.4s ease-out; }
 .results-card .trophy { font-size: 56px; filter: drop-shadow(0 6px 20px rgba(230, 196, 106, 0.5)); }
@@ -527,11 +540,11 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 }
 body.disconnected #offline { transform: none; }
 
-/* ------------------------------------------------ Phasen */
+/* ------------------------------------------------ Phases */
 body[data-phase='lobby'] #actions,
 body[data-phase='lobby'] #strength { display: none !important; }
 
-/* ------------------------------------------------ Mobil */
+/* ------------------------------------------------ Mobile */
 @media (max-width: 800px) {
   body { font-size: 13px; }
   .brand { display: none; }
