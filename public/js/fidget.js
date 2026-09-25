@@ -343,7 +343,8 @@ export class ChipFidget {
     const now = performance.now();
     if (now - this.lastHover < 60) return;
     this.lastHover = now;
-    this.el.style.cursor = this.#pick(e) ? 'grab' : '';
+    const want = this.#pick(e) ? 'grab' : '';
+    if (want || this.el.style.cursor === 'grab') this.el.style.cursor = want;
   }
 
   #up() {

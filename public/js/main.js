@@ -5,6 +5,7 @@ import { Voice } from './voice.js';
 import { audioContext } from './sound.js';
 import { preloadCardArt } from './textures.js';
 import { ChipFidget } from './fidget.js';
+import { Gadgets } from './gadgets.js';
 
 // Beitreten: Klick ist nötig, damit der Browser Audio abspielen und das Mikro freigeben darf.
 // Der Handler wird sofort registriert; der Rest wartet ggf. auf das Laden der Szene.
@@ -39,9 +40,7 @@ try {
 
 const stage = new Stage(document.getElementById('stage'));
 const view = new TableView(stage);
-stage.onLayout = () => view.relayout();
 // Entwickler-Hilfe: ?debug in der URL macht Szene und Tischansicht in der Konsole verfügbar
-if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { __stage: stage, __view: view });
 
 const socket = io({
   auth: (cb) => cb({ token: localStorage.getItem('pc.token') }),
@@ -50,6 +49,13 @@ const socket = io({
 const send = (ev, data) => socket.emit(ev, data);
 const hud = new Hud({ stage, view, send, voice: null });
 new ChipFidget({ stage, view, send, socket });
+const gadgets = new Gadgets({ stage, send, socket });
+stage.onLayout = () => {
+  view.relayout();
+  gadgets.relayout();
+};
+// Entwickler-Hilfe: ?debug in der URL macht Szene und Tischansicht in der Konsole verfügbar
+if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { __stage: stage, __view: view, __gadgets: gadgets });
 let iceServers = null;
 let voice = null;
 
@@ -60,6 +66,7 @@ socket.on('welcome', (w) => {
 });
 socket.on('state', (s) => {
   view.update(s);
+  gadgets.update(s);
   hud.update(s);
   stage.idle = s.phase !== 'running';
 });

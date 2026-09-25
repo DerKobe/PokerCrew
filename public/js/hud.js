@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { evaluateBest, rankValue } from '/shared/cards.js';
+import { GADGETS, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -60,6 +61,11 @@ const TEQUILA_SHOT = `<svg class="shot" viewBox="0 0 34 40" aria-hidden="true">
   <path d="M22.2 12.6L23.5 11.5" stroke="#b35400" stroke-width="1" stroke-linecap="round"/>
 </svg>`;
 
+const gadgetIcon = (id) => {
+  const g = GADGETS.find((x) => x.id === id);
+  return g ? ` <span class="sg" title="${g.label}">${g.icon}</span>` : '';
+};
+
 export class Hud {
   constructor({ stage, view, send, voice }) {
     this.stage = stage;
@@ -75,6 +81,8 @@ export class Hud {
     this.lastResultKey = null;
     this.lastTurnKey = null;
     this.name = localStorage.getItem('pc.name') || '';
+    this.gadget = localStorage.getItem('pc.gadget');
+    if (!isGadget(this.gadget)) this.gadget = null;
     this.#build();
     stage.onFrame.push(() => this.#frame());
     setInterval(() => this.#tick(), 250);
@@ -233,6 +241,10 @@ export class Hud {
         <div class="row name-row">
           <label>Dein Name<input id="in-name" maxlength="16" placeholder="z. B. Alex" autocomplete="nickname"></label>
         </div>
+        <div class="gadget-row">
+          <span class="lbl">Dein Gadget <em>– liegt neben dir am Tisch, Klick darauf für eine Animation</em></span>
+          <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${g.label}</span></button>`).join('')}</div>
+        </div>
         <div class="seatgrid"></div>
         <div class="struct">
           <div class="struct-head">
@@ -273,7 +285,15 @@ export class Hud {
     });
     nameIn.addEventListener('change', () => {
       const mine = this.state?.mySeat;
-      if (mine != null && this.name.trim()) this.send('sit', { seat: mine, name: this.name });
+      if (mine != null && this.name.trim()) this.send('sit', { seat: mine, name: this.name, gadget: this.gadget });
+    });
+    el.querySelectorAll('.gadget-opt').forEach((b) => {
+      b.onclick = () => {
+        this.gadget = b.dataset.g;
+        localStorage.setItem('pc.gadget', this.gadget);
+        if (this.state?.mySeat != null) this.send('gadget', this.gadget);
+        if (this.state) this.#renderLobby(this.state);
+      };
     });
     $('.presets', el).innerHTML = PRESETS.map((p) => `<button class="chip-btn" data-p="${p.id}">${p.label}</button>`).join('');
     el.querySelectorAll('.presets button').forEach((b) => {
@@ -327,7 +347,7 @@ export class Hud {
       this.toast('Bitte zuerst deinen Namen eingeben.', 'error');
       return;
     }
-    this.send('sit', { seat, name });
+    this.send('sit', { seat, name, gadget: this.gadget });
   }
 
   #renderLobby(s) {
@@ -345,7 +365,7 @@ export class Hud {
       .map((seat, i) => {
         const mine = s.mySeat === i;
         if (seat)
-          return `<div class="seat taken ${mine ? 'mine' : ''} ${seat.connected ? '' : 'offline'}"><span class="no">${i + 1}</span><span class="sn">${esc(seat.name)}</span>${
+          return `<div class="seat taken ${mine ? 'mine' : ''} ${seat.connected ? '' : 'offline'}"><span class="no">${i + 1}</span><span class="sn">${esc(seat.name)}${gadgetIcon(seat.gadget)}</span>${
             mine ? '<button class="ghost small" data-stand>Aufstehen</button>' : seat.connected ? '' : '<em>offline</em>'
           }</div>`;
         return `<button class="seat free" data-seat="${i}"><span class="no">${i + 1}</span><span class="sn">Freier Platz</span><span class="cta">${s.mySeat != null ? 'Wechseln' : 'Hinsetzen'}</span></button>`;
@@ -353,6 +373,10 @@ export class Hud {
       .join('');
     el.querySelectorAll('[data-seat]').forEach((b) => (b.onclick = () => this.#sitAt(Number(b.dataset.seat))));
     el.querySelector('[data-stand]')?.addEventListener('click', () => this.send('stand'));
+
+    // Gadget: Server-Stand gewinnt, sobald man sitzt
+    const myGadget = s.mySeat != null ? s.seats[s.mySeat].gadget : this.gadget;
+    el.querySelectorAll('.gadget-opt').forEach((b) => b.classList.toggle('active', b.dataset.g === myGadget));
 
     // Struktur
     const c = s.config;
@@ -409,6 +433,10 @@ export class Hud {
     if (s.phase === 'running' && s.mySeat != null && !localStorage.getItem('pc.fidgetHint')) {
       localStorage.setItem('pc.fidgetHint', '1');
       setTimeout(() => this.toast('Tipp: Spiel mit deinen Chips – klick auf deinen Stack oder halt ihn gedrückt und zieh.'), 4000);
+    }
+    if (s.phase === 'running' && s.mySeat != null && s.seats[s.mySeat]?.gadget && !localStorage.getItem('pc.gadgetHint')) {
+      localStorage.setItem('pc.gadgetHint', '1');
+      setTimeout(() => this.toast('Tipp: Klick auf dein Gadget neben dir am Tisch.'), 12000);
     }
     this.state = s;
     this.stateAt = performance.now();

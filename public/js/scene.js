@@ -103,6 +103,48 @@ export function seatAnchors(pos, me = pos === 0) {
   };
 }
 
+// Umlaufparameter (Bogenlänge ab Mitte der unteren Längsseite, gegen den Uhrzeigersinn von
+// oben gesehen = nach links aus Sicht von Platz 0) auf einer Stadion-Kurve mit Radius R.
+function perimeterParam(x, z, R) {
+  const a = TABLE.a;
+  if (x < -a) {
+    let phi = Math.atan2(z, x + a);
+    if (phi < 0) phi += Math.PI * 2;
+    return a + (phi - Math.PI / 2) * R;
+  }
+  if (x > a) return 3 * a + Math.PI * R + (Math.atan2(z, x - a) + Math.PI / 2) * R;
+  return z > 0 ? -x : a + Math.PI * R + (x + a);
+}
+
+function perimeterAt(s, R) {
+  const a = TABLE.a;
+  const L = 4 * a + 2 * Math.PI * R;
+  s = ((s % L) + L) % L;
+  const arc = (cx, phi) => ({ x: cx + R * Math.cos(phi), z: R * Math.sin(phi), nx: Math.cos(phi), nz: Math.sin(phi) });
+  if (s < a) return { x: -s, z: R, nx: 0, nz: 1 };
+  s -= a;
+  if (s < Math.PI * R) return arc(-a, Math.PI / 2 + s / R);
+  s -= Math.PI * R;
+  if (s < 2 * a) return { x: -a + s, z: -R, nx: 0, nz: -1 };
+  s -= 2 * a;
+  if (s < Math.PI * R) return arc(a, -Math.PI / 2 + s / R);
+  s -= Math.PI * R;
+  return { x: a - s, z: R, nx: 0, nz: 1 };
+}
+
+// Ablage für das Gadget: auf der Holzbahn, `along` Einheiten links neben dem Platz
+export function gadgetAnchor(pos, along) {
+  const ang = (portrait ? SEAT_ANGLES_PORTRAIT : SEAT_ANGLES)[pos];
+  let dx = -Math.sin(ang);
+  let dz = Math.cos(ang);
+  if (portrait) [dx, dz] = [-dz, dx];
+  const { p } = stadiumPoint(dx, dz);
+  const R = TABLE.r + 0.2;
+  const q = perimeterAt(perimeterParam(p.x, p.z, R) + along, R);
+  const n = tableToWorld(q.nx, 0, q.nz);
+  return { pos: tableToWorld(q.x, 0.065, q.z), yaw: Math.atan2(n.x, n.z) };
+}
+
 // Tischfeste Punkte (Board, Pot, Deck) sind in Tisch-Koordinaten definiert und drehen im
 // Hochformat mit dem Tisch mit – wie an einem echten Tisch, den man von der Stirnseite sieht.
 export const tableYaw = () => (portrait ? Math.PI / 2 : 0);

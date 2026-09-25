@@ -1,6 +1,7 @@
 // Test-Bots: setzen sich an freie Plätze und spielen zufällig mit.
-// Aufruf: node scripts/bots.js [anzahl=2] [url=http://localhost:3000] [--start] [--shove]
+// Aufruf: node scripts/bots.js [anzahl=2] [url=http://localhost:3000] [--start] [--shove] [--fun]
 // --shove: Bots gehen All-in, sobald sie erhöhen dürfen (zum Testen von All-in-Situationen)
+// --fun: Bots spielen alle paar Sekunden mit ihrem Gadget
 import { io } from 'socket.io-client';
 
 const args = process.argv.slice(2);
@@ -8,7 +9,9 @@ const count = Number(args.find((a) => /^\d+$/.test(a)) || 2);
 const url = args.find((a) => a.startsWith('http')) || 'http://localhost:3000';
 const autoStart = args.includes('--start');
 const shove = args.includes('--shove');
+const fun = args.includes('--fun');
 const NAMES = ['Botty', 'Chipper', 'River Rat', 'Tilt', 'Nuts'];
+const GADGETS = ['cigar', 'vape', 'cocktail', 'whiskey'];
 
 for (let i = 0; i < count; i++) {
   const name = NAMES[i % NAMES.length];
@@ -16,11 +19,12 @@ for (let i = 0; i < count; i++) {
   let timer = null;
   let latest = null;
   socket.on('toast', (t) => console.log(`[${name}] ${t.text}`));
+  if (fun) setInterval(() => socket.emit('gadget-play'), 5000 + Math.random() * 7000);
   socket.on('state', (s) => {
     latest = s;
     if (s.phase === 'lobby' && s.mySeat == null) {
       const free = s.seats.findIndex((x) => !x);
-      if (free >= 0) socket.emit('sit', { seat: free, name });
+      if (free >= 0) socket.emit('sit', { seat: free, name, gadget: GADGETS[i % GADGETS.length] });
       return;
     }
     if (s.phase === 'lobby' && autoStart && i === count - 1 && s.seats.filter(Boolean).length >= 2) {

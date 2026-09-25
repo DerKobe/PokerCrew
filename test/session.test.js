@@ -10,6 +10,8 @@ class FakeSocket extends EventEmitter {
     this.handshake = { auth: { token } };
     this.received = [];
     this.lastState = null;
+    this.broadcasted = [];
+    this.broadcast = { emit: (ev, data) => this.broadcasted.push([ev, data]) };
   }
   emit(ev, data) {
     if (ev === 'state') this.lastState = data;
@@ -157,5 +159,36 @@ test('All-in-Runout: Board wird erst auf Klick aufgedeckt, Fallback nach Timeout
   assert.equal(s.hand.board.length, 5);
   assert.equal(typeof socks[0].lastState.drama, 'boolean');
   assert.equal(socks[0].lastState.reveal, null);
+  s.close();
+});
+
+test('Gadgets: Wahl in der Lobby, fest während des Turniers', () => {
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
+  const a = new FakeSocket('ga', 'token-gadget-a');
+  const b = new FakeSocket('gb', 'token-gadget-b');
+  s.connect(a);
+  s.connect(b);
+  a.send('sit', { seat: 0, name: 'A', gadget: 'whiskey' });
+  b.send('sit', { seat: 2, name: 'B', gadget: 'nonsense' });
+  assert.equal(a.lastState.seats[0].gadget, 'whiskey');
+  assert.equal(a.lastState.seats[2].gadget, null);
+  // Wechseln in der Lobby, Namensänderung behält das Gadget
+  b.send('gadget', 'vape');
+  b.send('sit', { seat: 2, name: 'Bea' });
+  assert.equal(s.seats[2].gadget, 'vape');
+  b.send('sit', { seat: 3, name: 'Bea' });
+  assert.equal(s.seats[3].gadget, 'vape');
+
+  // Klick wird an die anderen weitergereicht (mit Drosselung)
+  a.send('gadget-play');
+  a.send('gadget-play');
+  assert.equal(a.broadcasted.filter(([ev]) => ev === 'gadget').length, 1);
+  assert.equal(a.broadcasted[0][1].seat, 0);
+
+  a.send('start');
+  assert.equal(s.phase, 'running');
+  b.send('gadget', 'cigar');
+  assert.equal(s.seats[3].gadget, 'vape');
+  assert.ok(b.received.some(([ev, d]) => ev === 'toast' && /nächsten Turnier/.test(d.text)));
   s.close();
 });

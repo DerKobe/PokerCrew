@@ -2,6 +2,7 @@
 import { randomUUID, randomInt } from 'node:crypto';
 import { HandEngine } from './engine.js';
 import { MAX_SEATS, defaultConfig, sanitizeConfig, levelAt } from '../shared/config.js';
+import { isGadget } from '../shared/gadgets.js';
 
 const DELAY = {
   street: 900, // Pause bevor die nächste Straße kommt
@@ -74,7 +75,9 @@ export class Session {
         }
       });
 
-    on('sit', (d) => this.sit(token, d?.seat, d?.name));
+    on('sit', (d) => this.sit(token, d?.seat, d?.name, d?.gadget));
+    on('gadget', (id) => this.setGadget(token, id));
+    on('gadget-play', () => this.playGadget(socket, token));
     on('stand', () => this.stand(token));
     on('config', (d) => this.setConfig(token, d));
     on('start', () => this.start(token));
@@ -135,7 +138,7 @@ export class Session {
 
   // ---------- Lobby ----------
 
-  sit(token, seat, name) {
+  sit(token, seat, name, gadget) {
     if (this.phase !== 'lobby') throw new Error('Das Turnier läuft bereits.');
     seat = Number(seat);
     if (!Number.isInteger(seat) || seat < 0 || seat >= MAX_SEATS) throw new Error('Ungültiger Platz');
@@ -146,8 +149,18 @@ export class Session {
     if (this.seats.some((s, i) => s && i !== seat && s.token !== token && s.name.toLowerCase() === name.toLowerCase()))
       throw new Error('Der Name ist schon vergeben.');
     const old = this.seatOfToken(token);
+    const prevGadget = old != null ? this.seats[old].gadget : null;
     if (old != null) this.seats[old] = null;
-    this.seats[seat] = { token, name, stack: 0, connected: true, away: false, eliminated: false, place: null };
+    this.seats[seat] = {
+      token,
+      name,
+      gadget: isGadget(gadget) ? gadget : prevGadget,
+      stack: 0,
+      connected: true,
+      away: false,
+      eliminated: false,
+      place: null,
+    };
     this.#addLog(`${name} nimmt Platz ${seat + 1}.`);
     this.broadcast();
   }
@@ -158,6 +171,15 @@ export class Session {
     if (seat == null) return;
     this.#addLog(`${this.seats[seat].name} steht auf.`);
     this.seats[seat] = null;
+    this.broadcast();
+  }
+
+  // Gadget nur in der Lobby wählbar – während des Turniers bleibt es fest
+  setGadget(token, id) {
+    if (this.phase !== 'lobby') throw new Error('Das Gadget kannst du erst beim nächsten Turnier wechseln.');
+    const seat = this.#requireSeat(token);
+    if (!isGadget(id)) throw new Error('Unbekanntes Gadget');
+    this.seats[seat].gadget = id;
     this.broadcast();
   }
 
@@ -502,6 +524,17 @@ export class Session {
     });
   }
 
+  // Klick aufs eigene Gadget: Animation bei allen anderen abspielen
+  playGadget(socket, token) {
+    const seat = this.seatOfToken(token);
+    if (seat == null || !this.seats[seat].gadget) return;
+    const c = this.clients.get(socket.id);
+    const now = Date.now();
+    if (c.gadgetAt && now - c.gadgetAt < 400) return;
+    c.gadgetAt = now;
+    socket.broadcast.emit('gadget', { seat, seed: randomInt(2 ** 31) });
+  }
+
   // ---------- Voice-Signaling (WebRTC Mesh) ----------
 
   voiceJoin(socket, d) {
@@ -549,6 +582,7 @@ export class Session {
           ? {
               seat: i,
               name: s.name,
+              gadget: s.gadget || null,
               stack: hv?.players[i] ? hv.players[i].stack : s.stack,
               connected: s.connected,
               away: s.away,
