@@ -10,6 +10,7 @@ const RADIUS = 0.08;
 let faceGeo;
 let edgeGeo;
 let backMat;
+let backStyle = 'red';
 let edgeMat;
 let glowGeo;
 
@@ -47,9 +48,16 @@ function init() {
   // Keep only the side walls: the cap faces would lie almost exactly under the
   // front/back faces and flicker (z-fighting).
   edgeGeo.groups = edgeGeo.groups.filter((g) => g.materialIndex === 1);
-  backMat = new THREE.MeshStandardMaterial({ map: cardBackTexture(), roughness: 0.42, metalness: 0 });
+  backMat = new THREE.MeshStandardMaterial({ map: cardBackTexture(backStyle), roughness: 0.42, metalness: 0 });
   edgeMat = new THREE.MeshStandardMaterial({ color: 0xe9e4d6, roughness: 0.7 });
   glowGeo = new THREE.ShapeGeometry(roundedShape(CARD_W + 0.12, CARD_H + 0.12, RADIUS + 0.05), 8);
+}
+
+// All cards share one back material, so switching the design updates every card at once
+export function setCardBack(style) {
+  if (!style || style === backStyle) return;
+  backStyle = style;
+  if (backMat) backMat.map = cardBackTexture(style);
 }
 
 /**

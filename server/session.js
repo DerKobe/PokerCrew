@@ -232,15 +232,16 @@ export class Session {
     this.broadcast();
   }
 
-  // The table itself (tournament name printed on the felt, felt colour, rim material) is
+  // The table itself (tournament name printed on the felt, felt colour, rim material, card back) is
   // open to everyone in the lobby as well
   setTable(d) {
     if (this.phase !== 'lobby') throw new UserError('configLocked');
     if (!d || typeof d !== 'object') return;
     const pick = {};
-    for (const k of ['title', 'felt', 'rim']) if (k in d) pick[k] = d[k];
+    const keys = ['title', 'felt', 'rim', 'cardBack'];
+    for (const k of keys) if (k in d) pick[k] = d[k];
     const next = sanitizeConfig(pick, this.config);
-    if (next.title === this.config.title && next.felt === this.config.felt && next.rim === this.config.rim) return;
+    if (keys.every((k) => next[k] === this.config[k])) return;
     this.config = next;
     this.broadcast();
   }
