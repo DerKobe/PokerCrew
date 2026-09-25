@@ -233,14 +233,20 @@ export class Hud {
             <label>Level-Dauer (Min.)<input id="in-level" type="number" min="1" max="120"></label>
             <label>Zeit pro Zug (Sek.)<input id="in-action" type="number" min="10" max="300"></label>
           </div>
-          <div class="blinds-wrap">
-            <table class="blinds"><thead><tr><th>Level</th><th>Small Blind</th><th>Big Blind</th><th>Ante</th><th>Beginn</th><th></th></tr></thead><tbody></tbody></table>
+          <div class="row struct-summary">
+            <div class="blind-summary"></div>
+            <button class="ghost" id="btn-blinds" aria-expanded="false"></button>
           </div>
-          <div class="row struct-foot">
-            <button class="ghost" id="btn-addlvl">+ Level</button>
-            <button class="ghost" id="btn-reset">Standard</button>
-            <div class="estimate"></div>
+          <div class="blinds-editor hidden">
+            <div class="blinds-wrap">
+              <table class="blinds"><thead><tr><th>Level</th><th>Small Blind</th><th>Big Blind</th><th>Ante</th><th>Beginn</th><th></th></tr></thead><tbody></tbody></table>
+            </div>
+            <div class="row struct-foot">
+              <button class="ghost" id="btn-addlvl">+ Level</button>
+              <button class="ghost" id="btn-reset">Standard</button>
+            </div>
           </div>
+          <div class="estimate"></div>
           <p class="hint readonly-hint">Nur Spieler am Tisch können die Struktur ändern.</p>
         </div>
         <div class="lobby-foot">
@@ -278,6 +284,12 @@ export class Hud {
     };
     $('#btn-reset').onclick = () => this.send('config', defaultConfig());
     $('#btn-start').onclick = () => this.send('start');
+    // Blindstruktur ist standardmäßig eingeklappt
+    this.blindsOpen = false;
+    $('#btn-blinds').onclick = () => {
+      this.blindsOpen = !this.blindsOpen;
+      if (this.state) this.#renderLobby(this.state);
+    };
     $('.blinds tbody', el).addEventListener('change', (e) => {
       const tr = e.target.closest('tr');
       if (!tr) return;
@@ -359,6 +371,13 @@ export class Hud {
         )
         .join('');
     }
+    $('.blinds-editor', el).classList.toggle('hidden', !this.blindsOpen);
+    const toggle = $('#btn-blinds');
+    toggle.textContent = this.blindsOpen ? 'Blindstruktur ausblenden ▴' : canEdit ? 'Blindstruktur bearbeiten ▾' : 'Blindstruktur anzeigen ▾';
+    toggle.setAttribute('aria-expanded', String(this.blindsOpen));
+    const first = c.levels[0];
+    const last = c.levels[c.levels.length - 1];
+    $('.blind-summary', el).innerHTML = `<b>${c.levels.length} Level</b> à ${c.levelMinutes} Min. · Blinds ${fmt(first.sb)}/${fmt(first.bb)} → ${fmt(last.sb)}/${fmt(last.bb)}`;
     $('#btn-addlvl').disabled = !canEdit;
     $('#btn-reset').disabled = !canEdit;
     const n = Math.max(2, seated);

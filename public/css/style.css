@@ -404,7 +404,10 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .blinds .del { background: none; border: 0; color: var(--muted); font-size: 18px; padding: 0 6px; }
 .blinds .del:hover { color: var(--red); }
 .struct-foot { align-items: center; flex-wrap: wrap; }
-.estimate { margin-left: auto; color: var(--muted); font-size: 13px; }
+.struct-summary { align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.blind-summary { color: var(--muted); font-size: 13px; }
+.blind-summary b { color: var(--ink); }
+.estimate { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
 .estimate b { color: var(--gold); }
 .hint { color: var(--muted); font-size: 12px; margin: 0; }
 #lobby:not(.readonly) .readonly-hint { display: none; }
