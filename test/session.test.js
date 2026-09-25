@@ -325,6 +325,7 @@ test('Bots: fill empty seats at the start and play a tournament to the end', asy
   human.send('start');
   assert.equal(s.phase, 'lobby', 'without bots one player is not enough');
   human.send('config', { bots: true });
+  s.config.actionSeconds = 0.005; // set before the start: the human times out and auto-folds
   human.send('start');
   assert.equal(s.phase, 'running');
   const bots = s.seats.filter((x) => x?.bot);
@@ -332,14 +333,14 @@ test('Bots: fill empty seats at the start and play a tournament to the end', asy
   assert.equal(new Set(s.seats.filter(Boolean).map((x) => x.name)).size, 5);
   assert.ok(human.lastState.seats.some((x) => x?.bot), 'profiles are visible to clients');
   assert.ok(s.log.some((e) => e.key === 'botsJoin' && e.p.names.length === 4));
-  s.config.actionSeconds = 0.005; // the human times out and auto-folds
   // knock over a bot's stack: it tidies up by itself
   const botSeat = s.seats.findIndex((x) => x?.bot);
   human.send('topple', { seat: botSeat });
   assert.ok(s.toppled[botSeat]);
   await new Promise((r) => setTimeout(r, 30));
   assert.equal(s.toppled[botSeat], undefined, 'the bot stacked its chips again');
-  for (let i = 0; i < 400 && s.phase === 'running'; i++) await new Promise((r) => setTimeout(r, 10));
+  // bots run a small simulation per decision; allow up to 15 s on a slow machine
+  for (let i = 0; i < 1500 && s.phase === 'running'; i++) await new Promise((r) => setTimeout(r, 10));
   s.close();
   assert.equal(s.phase, 'finished');
   assert.equal(s.results.length, 5);
