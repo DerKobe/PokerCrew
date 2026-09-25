@@ -107,10 +107,8 @@ export function seatAnchors(pos, me = pos === 0, count = 5) {
     button: me ? raw(1.2, portrait ? -1.7 : -1.9) : at(1.9, -1.45, 0, 0.55),
     plate: me ? raw(-0.95, 0, 0.6) : raw(-0.75, 0, 0.6),
     ring: me ? raw(0.95, 0, 0.012) : at(1.4, 0, 0.012, 0.8),
-    // trophies stand in a row left of the cards; further copies of the same trophy line up
-    // behind the first one (towards the table centre)
-    trophy: (slot, copy = 0) =>
-      me ? raw(0.5 + copy * 0.36, -1.65 - slot * 0.78 - copy * 0.12) : at(0.75 + copy * 0.36, -1.55 - slot * 0.78 - copy * 0.12, 0, 0.45),
+    // trophies stand in a row left of the cards; `offset` = distance along the row
+    trophy: (offset) => (me ? raw(0.5, -1.65 - offset) : at(0.75, -1.55 - offset, 0, 0.45)),
   };
 }
 

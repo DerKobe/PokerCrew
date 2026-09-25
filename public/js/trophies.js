@@ -9,8 +9,10 @@ import { tween, ease } from './tween.js';
 import { sfx } from './sound.js';
 import { t } from './i18n.js';
 
-const MAX_COPIES = 3;
-const SCALE = 1.45; // larger than life so they are recognisable from the table view // more copies of the same trophy only raise the count in the tooltip
+const SCALE = 1.45; // larger than life so they are recognisable from the table view
+const GROWTH = 0.15; // each further trophy of the same kind makes it this much bigger ...
+const MAX_GROWTH = 1.6; // ... up to this factor; the tooltip shows the exact count
+const SLOT = 0.78; // room one trophy takes in the row (at base size)
 const ICONS = { sevenDeuce: '🃏', tequila: '🥃', crackedAces: '💔', riverRat: '🐀' };
 
 const gold = () => new THREE.MeshPhysicalMaterial({ color: 0xd9b25a, metalness: 1, roughness: 0.25, clearcoat: 0.6, envMapIntensity: 1.6 });
@@ -135,7 +137,7 @@ export class Trophies {
   constructor({ stage, view }) {
     this.stage = stage;
     this.view = view;
-    this.slots = new Map(); // `${seat}:${kind}` -> { group, copies: [Group], seat, kind, slot }
+    this.slots = new Map(); // `${seat}:${kind}` -> { seat, kind, obj, hit, count }
     this.known = new Set(); // ids of the trophies in the last state (seat:name:kind:hand:index)
     this.pending = [];
     this.state = null;
@@ -182,7 +184,7 @@ export class Trophies {
   }
 
   relayout() {
-    for (const slot of this.slots.values()) this.#place(slot);
+    for (const seat of new Set([...this.slots.values()].map((sl) => sl.seat))) this.#placeSeat(seat);
   }
 
   // Computed from the state directly: the table view applies seat changes asynchronously
@@ -198,47 +200,55 @@ export class Trophies {
     return Math.max(0, kinds.indexOf(kind));
   }
 
-  #place(slot) {
-    const A = this.#anchors(slot.seat);
-    slot.slot = this.#slotIndex(slot.seat, slot.kind);
-    slot.copies.forEach((c, k) => {
-      c.position.copy(A.trophy(slot.slot, k));
-      if (!c.userData.popping) c.scale.setScalar(SCALE);
-      c.rotation.y = A.yaw + (k % 2 ? 0.35 : -0.2);
-    });
+  // One trophy per kind; every further one of the same kind makes it a bit bigger
+  #scaleFor(count) {
+    return SCALE * Math.min(MAX_GROWTH, 1 + GROWTH * (count - 1));
+  }
+
+  // Lay out a seat's row: bigger trophies take more room, so the offsets add up
+  #placeSeat(seat) {
+    const A = this.#anchors(seat);
+    const row = [...this.slots.values()].filter((sl) => sl.seat === seat).sort((a, b) => this.#slotIndex(seat, a.kind) - this.#slotIndex(seat, b.kind));
+    let offset = 0;
+    for (const sl of row) {
+      const width = SLOT * (this.#scaleFor(sl.count) / SCALE);
+      sl.obj.position.copy(A.trophy(offset + (width - SLOT) / 2));
+      sl.obj.rotation.y = A.yaw - 0.2;
+      if (!sl.obj.userData.popping) sl.obj.scale.setScalar(this.#scaleFor(sl.count));
+      offset += width;
+    }
   }
 
   #add(seat, kind, animate) {
     const key = `${seat}:${kind}`;
     let slot = this.slots.get(key);
+    const from = slot ? this.#scaleFor(slot.count) : 0.01;
     if (!slot) {
-      slot = { seat, kind, copies: [], count: 0 };
+      const obj = MODELS[kind]();
+      // invisible, generous hit area for hovering
+      const hit = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.22, 0.4, 12),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }),
+      );
+      hit.position.y = 0.2;
+      obj.add(hit);
+      slot = { seat, kind, obj, hit, count: 0 };
+      hit.userData.slot = slot;
       this.slots.set(key, slot);
+      this.stage.scene.add(obj);
     }
     slot.count++;
-    if (slot.copies.length >= MAX_COPIES) return;
-    const obj = MODELS[kind]();
-    obj.userData.slot = slot;
-    // invisible, generous hit area for hovering
-    const hit = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.22, 0.22, 0.4, 12),
-      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }),
-    );
-    hit.position.y = 0.2;
-    hit.userData.slot = slot;
-    obj.add(hit);
-    obj.userData.hit = hit;
-    slot.copies.push(obj);
-    this.stage.scene.add(obj);
-    this.#place(slot);
+    this.#placeSeat(seat);
     if (!animate) return;
-    // pop in with a little golden sparkle and a chime
-    obj.scale.setScalar(0.01);
+    // pop in (or grow) with a little golden sparkle and a chime
+    const obj = slot.obj;
+    const to = this.#scaleFor(slot.count);
     obj.userData.popping = true;
+    obj.scale.setScalar(from);
     tween({
       duration: 650,
       easing: ease.outBack,
-      update: (k) => obj.scale.setScalar(Math.max(0.01, k * SCALE)),
+      update: (k) => obj.scale.setScalar(Math.max(0.01, from + (to - from) * k)),
       done: () => (obj.userData.popping = false),
     });
     this.#sparkle(obj.position);
@@ -247,10 +257,8 @@ export class Trophies {
 
   #removeSlot(key) {
     const slot = this.slots.get(key);
-    for (const c of slot.copies) {
-      this.stage.scene.remove(c);
-      c.traverse((o) => o.isMesh && o.geometry.dispose());
-    }
+    this.stage.scene.remove(slot.obj);
+    slot.obj.traverse((o) => o.isMesh && o.geometry.dispose());
     this.slots.delete(key);
   }
 
@@ -294,7 +302,7 @@ export class Trophies {
     const now = performance.now();
     if (now - (this.lastHover || 0) < 50) return;
     this.lastHover = now;
-    const hits = [...this.slots.values()].flatMap((s) => s.copies.map((c) => c.userData.hit));
+    const hits = [...this.slots.values()].map((sl) => sl.hit);
     if (!hits.length) return this.#hideTip();
     const rect = this.el.getBoundingClientRect();
     this.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
