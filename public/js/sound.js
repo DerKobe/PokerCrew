@@ -113,6 +113,13 @@ export const sfx = {
     [392, 523.25, 659.25, 783.99].forEach((f) => tone(t + 0.02, f, 1.1, { type: 'triangle', gain: 0.07, attack: 0.03 }));
     tone(t, 98, 0.5, { gain: 0.3, attack: 0.005 });
   },
+  // Trophy earned: short rising chime with a sparkle on top
+  trophy() {
+    if (!this.ok) return;
+    const t = ctx.currentTime;
+    [659.25, 830.61, 987.77, 1318.5].forEach((f, i) => tone(t + i * 0.07, f, 0.5, { type: 'triangle', gain: 0.07 }));
+    noise(t + 0.25, 0.4, { type: 'highpass', freq: 6000, sweepTo: 11000, q: 0.5, gain: 0.05, attack: 0.05 });
+  },
   // ---- Gadgets ----
   // Drawing on the cigar: soft inhale + crackling ember
   cigar(vol = 1) {

@@ -534,6 +534,16 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .lobby-foot .who { color: var(--muted); }
 .lobby-foot .primary { margin-left: auto; }
 
+/* ------------------------------------------------ Trophy tooltip */
+#trophy-tip {
+  position: fixed; left: 0; top: 0; z-index: 40; pointer-events: none; max-width: 260px;
+  display: grid; gap: 3px; padding: 9px 12px; border-radius: 12px;
+  background: rgba(14, 15, 18, 0.94); border: 1px solid rgba(230, 196, 106, 0.45); box-shadow: var(--shadow);
+  font-size: 12.5px; color: var(--ink);
+}
+#trophy-tip b { color: var(--gold); font-size: 13.5px; }
+#trophy-tip small { color: var(--muted); font-size: 11px; }
+
 /* ------------------------------------------------ Late registration */
 #join {
   position: fixed; inset: 0; z-index: 27; display: grid; place-items: center; padding: 72px 16px 16px;

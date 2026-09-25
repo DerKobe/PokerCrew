@@ -4,6 +4,7 @@ import { HandEngine } from './engine.js';
 import { MAX_SEATS, defaultConfig, sanitizeConfig, levelAt } from '../shared/config.js';
 import { isGadget } from '../shared/gadgets.js';
 import { UserError } from './errors.js';
+import { trophiesFor } from './trophies.js';
 
 const DELAY = {
   street: 900, // pause before the next street is dealt
@@ -181,6 +182,7 @@ export class Session {
       away: false,
       eliminated: false,
       place: null,
+      trophies: [],
     };
     this.#addLog(late ? 'lateJoin' : 'sit', { name, seat, stack: this.config.startingStack }, late ? 'system' : 'info');
     this.broadcast();
@@ -256,7 +258,7 @@ export class Session {
     for (const i of seated) {
       const s = this.seats[i];
       clearTimeout(s.leaveTimer);
-      Object.assign(s, { stack: this.config.startingStack, eliminated: false, place: null, away: false });
+      Object.assign(s, { stack: this.config.startingStack, eliminated: false, place: null, away: false, trophies: [] });
     }
     this.phase = 'running';
     this.startedAt = Date.now();
@@ -439,6 +441,7 @@ export class Session {
       const which = r.pots.length > 1 ? (pot === r.pots[0] ? 'main' : 'side') : 'only';
       this.#addLog('win', { names, pot: which, amount: pot.amount, hand: pot.hand }, 'win');
     }
+    this.#awardTrophies(h);
     // Rabbit Cam: if the hand ends before the river, players may briefly request the remaining cards
     if (r.uncontested && h.board.length < 5) {
       this.rabbit = { handId: h.handId, until: Date.now() + this.delay.rabbitWindow, cards: null, by: null };
@@ -448,6 +451,14 @@ export class Session {
       this.#step(r.uncontested ? this.delay.uncontested : this.delay.showdown, () => this.#afterHand());
     }
     this.broadcast();
+  }
+
+  #awardTrophies(h) {
+    for (const { seat, kind } of trophiesFor(h)) {
+      const s = this.seats[seat];
+      s.trophies.push({ kind, hand: h.handId });
+      this.#addLog('trophy', { name: s.name, kind }, 'win');
+    }
   }
 
   rabbitCam(token) {
@@ -657,6 +668,7 @@ export class Session {
               seat: i,
               name: s.name,
               gadget: s.gadget || null,
+              trophies: s.trophies || [],
               stack: hv?.players[i] ? hv.players[i].stack : s.stack,
               connected: s.connected,
               away: s.away,

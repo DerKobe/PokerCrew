@@ -217,7 +217,7 @@ const umbrellaTex = () =>
 // ------------------------------------------------------------ Materials
 
 // Glass: barely visible face-on, more visible towards the edges (Fresnel)
-function glassMaterial({ color = 0xffffff, opacity = 0.1, edge = 0.7, flat = false } = {}) {
+export function glassMaterial({ color = 0xffffff, opacity = 0.1, edge = 0.7, flat = false } = {}) {
   const m = new THREE.MeshPhysicalMaterial({
     color,
     roughness: 0.04,
