@@ -79,6 +79,8 @@ kbd {
 .icon:hover { background: rgba(255, 255, 255, 0.12); }
 .icon svg { width: 19px; height: 19px; fill: currentColor; }
 .icon.off { color: var(--red); }
+.menu .mobile-only { display: none; }
+#btn-fix.on { color: var(--gold); background: rgba(230, 196, 106, 0.16); border-color: rgba(230, 196, 106, 0.45); }
 
 /* ------------------------------------------------ Top bar */
 #topbar {
@@ -486,6 +488,8 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .seat.offline { opacity: 0.6; }
 .seat em { font-size: 11px; color: var(--red); }
 .struct { border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 18px; }
+.title-row label { flex: 1; }
+.title-row input { font: italic 700 18px var(--serif); color: var(--gold); }
 .struct-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
 .chip-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600; }
@@ -578,6 +582,8 @@ body[data-phase='lobby'] #strength { display: none !important; }
   body { font-size: 13px; }
   .brand { display: none; }
   #topbar { padding: 8px; gap: 8px; }
+  #btn-fix { display: none; }
+  .menu .mobile-only { display: block; }
   .levelinfo { padding: 5px 12px; gap: 8px; font-size: 12px; }
   .levelinfo .hand-no { display: none; }
   #voice { top: auto; bottom: 16px; left: 16px; right: auto; width: auto; min-width: 0; padding: 6px; }

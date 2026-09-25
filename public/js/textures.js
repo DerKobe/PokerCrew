@@ -144,7 +144,8 @@ function stadiumPath(ctx, cx, cy, a, r) {
 }
 
 // The print is fixed to the table: in portrait it rotates with the table (like board and pot).
-export function feltTexture(color = '#0f6b43') {
+// `title` is the tournament name printed between the board and your own seat.
+export function feltTexture(title = 'PokerCrew', color = '#0f6b43') {
   const W = 2048;
   const H = Math.round((W * FELT_D) / FELT_W);
   const c = canvas(W, H);
@@ -187,29 +188,29 @@ export function feltTexture(color = '#0f6b43') {
     ctx.stroke();
   }
 
-  // Logo between the board and your own seat: "Poker Crew" with "since 1999" below
+  // Tournament name between the board and your own seat, framed by suit symbols.
+  // Long names get a smaller font so name + suits stay within the width of the board.
   ctx.save();
-  ctx.translate(0, 0.98);
+  ctx.translate(0, 1.12);
   ctx.scale(1 / k, 1 / k);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `italic 700 ${0.46 * k}px ${SERIF}`;
-  const tw = ctx.measureText('Poker Crew').width;
+  let size = 0.5 * k;
+  ctx.font = `italic 700 ${size}px ${SERIF}`;
+  const maxW = 5.2 * k;
+  const w0 = ctx.measureText(title).width;
+  if (w0 > maxW) {
+    size = Math.max(0.24 * k, (size * maxW) / w0);
+    ctx.font = `italic 700 ${size}px ${SERIF}`;
+  }
+  const tw = ctx.measureText(title).width;
   ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-  ctx.fillText('Poker Crew', 3, 4);
+  ctx.fillText(title, 3, 4);
   ctx.fillStyle = 'rgba(240, 222, 170, 0.26)';
-  ctx.fillText('Poker Crew', 0, 0);
-  ['s', 'h'].forEach((su, i) => drawSuit(ctx, su, -tw / 2 - 0.3 * k - i * 0.34 * k, 0, 0.26 * k, 'rgba(240, 222, 170, 0.2)'));
-  ['d', 'c'].forEach((su, i) => drawSuit(ctx, su, tw / 2 + 0.3 * k + i * 0.34 * k, 0, 0.26 * k, 'rgba(240, 222, 170, 0.2)'));
-  // "since 1999" with thin decorative lines left and right
-  ctx.font = `italic 600 ${0.19 * k}px ${SERIF}`;
-  ctx.letterSpacing = `${0.03 * k}px`;
-  const sy = 0.4 * k;
-  const sw = ctx.measureText('since 1999').width;
-  ctx.fillStyle = 'rgba(240, 222, 170, 0.24)';
-  ctx.fillText('since 1999', 0, sy);
-  ctx.fillRect(-sw / 2 - 0.62 * k, sy - 1, 0.45 * k, 2);
-  ctx.fillRect(sw / 2 + 0.17 * k, sy - 1, 0.45 * k, 2);
+  ctx.fillText(title, 0, 0);
+  const sz = Math.min(0.26 * k, size * 0.55);
+  ['s', 'h'].forEach((su, i) => drawSuit(ctx, su, -tw / 2 - sz * 1.15 - i * sz * 1.3, 0, sz, 'rgba(240, 222, 170, 0.2)'));
+  ['d', 'c'].forEach((su, i) => drawSuit(ctx, su, tw / 2 + sz * 1.15 + i * sz * 1.3, 0, sz, 'rgba(240, 222, 170, 0.2)'));
   ctx.restore();
 
   // Lettering above the pot
