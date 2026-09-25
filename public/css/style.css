@@ -346,6 +346,56 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 #banner .amt { font-weight: 800; }
 #banner .hn { font: italic 700 18px var(--serif); color: var(--gold); margin-top: 2px; }
 
+/* ------------------------------------------------ All-in-Runout */
+#reveal {
+  position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 17;
+  animation: pop 0.2s ease-out;
+}
+#reveal button {
+  position: relative; overflow: hidden;
+  padding: 13px 28px 15px; border-radius: 999px; border: 0;
+  font-weight: 800; font-size: 16px; letter-spacing: 0.02em;
+  color: #1d1406; background: linear-gradient(180deg, #f1d68a, #c99a3a);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 28px rgba(230, 196, 106, 0.45);
+}
+#reveal button:hover { filter: brightness(1.08); }
+#reveal .bar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: rgba(29, 20, 6, 0.55); transform-origin: left; transition: transform 0.25s linear;
+}
+/* Theatralischer River: Ränder abdunkeln */
+#vignette::after {
+  content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease;
+  background: radial-gradient(ellipse at 50% 50%, transparent 22%, rgba(0, 0, 0, 0.88) 78%);
+}
+body.drama #vignette::after { opacity: 1; }
+body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opacity: 0.35; transition: opacity 0.8s; }
+
+/* ------------------------------------------------ Rabbit Cam */
+#rabbit {
+  position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 17;
+  animation: pop 0.2s ease-out;
+}
+#rabbit button {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 22px 13px; border-radius: 999px; font-weight: 800; font-size: 15px;
+  color: #eaf2ff; background: linear-gradient(180deg, #3b5f9e, #243d6b);
+  border: 1px solid rgba(160, 200, 255, 0.5); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 24px rgba(120, 170, 255, 0.35);
+}
+#rabbit button:hover { filter: brightness(1.12); }
+#rabbit .bunny { font-size: 20px; }
+#rabbit .bar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: #a9ccff; transform-origin: left; transition: transform 0.25s linear;
+}
+.rabbitlabel {
+  position: absolute; left: 0; top: 0; white-space: nowrap;
+  font-weight: 700; font-size: 12px; color: #cfe1ff;
+  background: rgba(20, 32, 60, 0.8); border: 1px solid rgba(160, 200, 255, 0.45);
+  padding: 3px 10px; border-radius: 999px;
+}
+
 /* ------------------------------------------------ Lobby */
 #lobby {
   position: fixed; inset: 0; z-index: 25;

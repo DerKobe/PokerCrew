@@ -5,7 +5,7 @@ import {
   TABLE, FELT_W, FELT_D, BOARD_Z, feltTexture, feltBumpTexture, woodTexture, leatherBumpTexture,
   carpetTexture, dealerButtonTexture, setMaxAnisotropy,
 } from './textures.js';
-import { updateTweens } from './tween.js';
+import { updateTweens, tween, ease } from './tween.js';
 
 export const SEATS = 5;
 // Winkel der Anzeigepositionen (0 = unten/eigener Platz, im Uhrzeigersinn)
@@ -158,7 +158,8 @@ export class Stage {
 
   #lights() {
     const s = this.scene;
-    s.add(new THREE.HemisphereLight(0xfff3e0, 0x1a0f0a, 0.35));
+    this.hemi = new THREE.HemisphereLight(0xfff3e0, 0x1a0f0a, 0.35);
+    s.add(this.hemi);
     const spot = new THREE.SpotLight(0xffecd2, 520, 0, 0.62, 0.55, 1.6);
     spot.position.set(0, 21, 2);
     spot.target.position.set(0, 0, 0.3);
@@ -173,10 +174,12 @@ export class Stage {
     this.spot = spot;
     // weiches Fülllicht von der Spielerseite
     const fill = new THREE.DirectionalLight(0xdfe8ff, 0.55);
+    this.fill = fill;
     fill.position.set(-4, 10, 16);
     s.add(fill);
     // Randlicht von hinten für die Bande
     const rim = new THREE.DirectionalLight(0xffc98a, 0.5);
+    this.rim = rim;
     rim.position.set(6, 6, -14);
     s.add(rim);
   }
@@ -390,8 +393,11 @@ export class Stage {
     // Beim Chip-Riffle soll die Kamera nicht mit der Maus mitschwenken
     if (!this.freezeParallax) this.smoothMouse.lerp(this.mouse, 0.04);
     // Kamera: leicht geneigte Draufsicht, dezenter Parallax, im Leerlauf sanftes Schweben
-    const elev = this.elevation;
-    const d = this.baseDist;
+    // Drama-Fokus (theatralischer River): Kamera fährt näher und flacher an einen Punkt heran
+    const f = ease.inOutCubic(this.focusK || 0);
+    const elev = this.elevation - f * 0.13;
+    const d = this.baseDist * (1 - f * 0.42);
+    const target = this.focusK ? this.target.clone().lerp(this.focusPoint, f) : this.target;
     const sway = this.idle ? Math.sin(t * 0.15) * 0.12 : 0;
     const yawOff = this.smoothMouse.x * 0.05 + sway;
     const pitchOff = this.smoothMouse.y * 0.025;
@@ -402,11 +408,11 @@ export class Stage {
       this.camera.lookAt(this.debugCam.target);
     } else {
       this.camera.position.set(
-        this.target.x + Math.sin(yawOff) * Math.cos(e) * d,
-        this.target.y + Math.sin(e) * d,
-        this.target.z + Math.cos(yawOff) * Math.cos(e) * d,
+        target.x + Math.sin(yawOff) * Math.cos(e) * d,
+        target.y + Math.sin(e) * d,
+        target.z + Math.cos(yawOff) * Math.cos(e) * d,
       );
-      this.camera.lookAt(this.target);
+      this.camera.lookAt(target);
     }
 
     if (this.turnRing.visible) {
@@ -414,6 +420,26 @@ export class Stage {
     }
     for (const fn of this.onFrame) fn(t);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // Theatralischer Moment: Kamera auf einen Punkt, Umgebungslicht gedimmt
+  drama(on, point) {
+    if (point) this.focusPoint = point.clone();
+    if (!this.focusPoint) return Promise.resolve();
+    const from = this.focusK || 0;
+    const to = on ? 1 : 0;
+    document.body.classList.toggle('drama', on);
+    return tween({
+      duration: on ? 1100 : 900,
+      easing: ease.linear,
+      update: (k) => {
+        this.focusK = from + (to - from) * k;
+        const light = 1 - 0.7 * ease.inOutCubic(this.focusK);
+        this.hemi.intensity = 0.35 * light;
+        this.fill.intensity = 0.55 * light;
+        this.rim.intensity = 0.5 * light;
+      },
+    });
   }
 
   project(v3, out = new THREE.Vector3()) {

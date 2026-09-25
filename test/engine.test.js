@@ -196,3 +196,45 @@ test('Fuzz: Chips bleiben erhalten, Hände enden immer', () => {
     assert.ok(h.players.every((p) => p.stack >= 0));
   }
 });
+
+test('Rabbit Cam zeigt genau die Karten, die gekommen wären', () => {
+  for (const foldAfter of ['preflop', 'flop', 'turn']) {
+    const deck = stackedDeck(['2h', '3h', '4h', '2d', '3d', '4d', '5c', 'As', 'Ks', 'Qs', '6c', 'Js', '7c', 'Ts']);
+    const h = new HandEngine({ players: [0, 1, 2].map((seat) => ({ seat, stack: 1000 })), buttonSeat: 0, sb: 5, bb: 10, deck });
+    // Referenz: dieselbe Hand bis zum River durchgecheckt
+    const ref = new HandEngine({ players: [0, 1, 2].map((seat) => ({ seat, stack: 1000 })), buttonSeat: 0, sb: 5, bb: 10, deck });
+    ref.act(0, 'call'); ref.act(1, 'call'); ref.act(2, 'check');
+    for (let i = 0; i < 3; i++) { ref.advance(); ref.act(1, 'check'); ref.act(2, 'check'); ref.act(0, 'check'); }
+    const fullBoard = ref.board;
+
+    if (foldAfter === 'preflop') {
+      h.act(0, 'fold'); h.act(1, 'fold');
+    } else {
+      h.act(0, 'call'); h.act(1, 'call'); h.act(2, 'check');
+      h.advance();
+      if (foldAfter === 'turn') { h.act(1, 'check'); h.act(2, 'check'); h.act(0, 'check'); h.advance(); }
+      h.act(1, 'raise', 100); h.act(2, 'fold'); h.act(0, 'fold');
+    }
+    assert.equal(h.phase, 'complete');
+    const rabbit = h.rabbitCards();
+    assert.deepEqual([...h.board, ...rabbit], fullBoard, foldAfter);
+    assert.deepEqual(h.rabbitCards(), rabbit, 'deterministisch, Deck unverändert');
+  }
+});
+
+test('River entscheidet: nur wenn der Sieger vom River abhängt', () => {
+  // Heads-up All-in preflop. Deck-Reihenfolge: Runde 1 (SB=Button, BB), Runde 2, dann Burn+Flop, Burn+Turn, Burn+River
+  const run = (order) => {
+    const h = new HandEngine({ players: [{ seat: 0, stack: 1000 }, { seat: 1, stack: 1000 }], buttonSeat: 0, sb: 10, bb: 20, deck: stackedDeck(order) });
+    h.act(0, 'allin'); h.act(1, 'call');
+    h.advance(); h.advance(); // Flop, Turn
+    return h;
+  };
+  // Seat 1: Flush-Draw gegen Seat 0 mit Top-Paar -> River entscheidet
+  const draw = run(['As', '9h', 'Kd', '8h', '2c', 'Ah', '4h', '7c', '3d', 'Jc', '5s', 'Qs']);
+  assert.equal(draw.board.length, 4);
+  assert.equal(draw.riverDecides(), true);
+  // Seat 0 hat Vierling, Seat 1 ist "drawing dead" -> kein Drama
+  const dead = run(['As', '2h', 'Ad', '3h', '4c', 'Ah', 'Ac', '7c', '5d', '8d', '5s', 'Qs']);
+  assert.equal(dead.riverDecides(), false);
+});

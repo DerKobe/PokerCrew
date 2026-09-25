@@ -92,9 +92,14 @@ export function createCard(code = null) {
       } else front.visible = false;
     },
     setHighlight(mode) {
-      // mode: null | 'win' | 'dim'
-      glow.visible = mode === 'win';
-      if (mode === 'dim') {
+      // mode: null | 'win' | 'dim' | 'rabbit'
+      // Rahmen: gold für Gewinnerkarten, blau für Rabbit-Cam-Karten
+      glow.visible = mode === 'win' || mode === 'rabbit';
+      glow.material.color.set(mode === 'rabbit' ? 0x6fa8ff : 0xffc94d);
+      if (mode === 'rabbit') {
+        frontMat.color.setRGB(0.55, 0.68, 1.0);
+        frontMat.emissiveIntensity = 0.04;
+      } else if (mode === 'dim') {
         frontMat.color.setScalar(0.38);
         frontMat.emissiveIntensity = 0;
       } else if (mode === 'win') {

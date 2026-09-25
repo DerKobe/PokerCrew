@@ -8,6 +8,10 @@ const DELAY = {
   runout: 1800, // All-in-Runout zwischen den Straßen
   showdown: 6500, // Ergebnis anzeigen bis zur nächsten Hand
   uncontested: 3200,
+  rabbitWindow: 5000, // so lange kann man die Rabbit Cam anfordern
+  rabbitShow: 5000, // so lange bleiben die Rabbit-Karten liegen
+  revealTimeout: 20_000, // All-in-Runout: automatisch aufdecken, falls niemand klickt
+  dramatic: 7500, // Pause nach einem inszenierten River bis zum Showdown
   away: 1200, // abwesende Spieler handeln automatisch
   disconnected: 12000,
   lobbyLeave: 90_000, // Sitz in der Lobby freigeben, wenn getrennt
@@ -44,6 +48,8 @@ export class Session {
     this.log = [];
     this.actionDeadline = 0;
     this.stepDeadline = 0;
+    this.rabbit = null;
+    this.pendingReveal = null;
   }
 
   // ---------- Verbindungen ----------
@@ -78,6 +84,8 @@ export class Session {
     on('abort', () => this.abort(token));
     on('newTournament', () => this.newTournament(token));
     on('chat', (text) => this.chat(token, text));
+    on('rabbit', () => this.rabbitCam(token));
+    on('reveal', () => this.revealBoard(token));
     on('fidget', (d) => this.fidget(socket, token, d));
     on('voice-join', (d) => this.voiceJoin(socket, d));
     on('voice-signal', (d) => this.voiceSignal(socket, d));
@@ -212,6 +220,8 @@ export class Session {
 
   #startHand(first = false) {
     this.stepDeadline = 0;
+    this.rabbit = null;
+    this.pendingReveal = null;
     if (this.phase !== 'running') return;
     if (this.paused) {
       this.hand = null;
@@ -273,17 +283,44 @@ export class Session {
     if (h.phase === 'betting') {
       this.#armActionTimer();
     } else if (h.phase === 'roundComplete') {
-      const d = h.runout ? this.delay.runout : this.delay.street;
-      this.#step(d, () => {
-        h.advance();
-        if (h.phase === 'complete') this.#handComplete();
-        else this.#afterChange();
-      });
+      if (h.runout && h.board.length < 5) {
+        // All-in-Runout mit offenen Karten: nächste Straße erst auf Klick (oder nach Timeout)
+        const next = h.board.length === 0 ? 'flop' : h.board.length === 3 ? 'turn' : 'river';
+        this.pendingReveal = { handId: h.handId, next, until: Date.now() + this.delay.revealTimeout };
+        this.#step(this.delay.revealTimeout, () => this.#revealNext(null));
+      } else {
+        const d = h.runout ? (h.dramaticRiver ? this.delay.dramatic : this.delay.runout) : this.delay.street;
+        this.#step(d, () => this.#advanceHand());
+      }
     } else if (h.phase === 'complete') {
       this.#handComplete();
       return;
     }
     this.broadcast();
+  }
+
+  #advanceHand() {
+    const h = this.hand;
+    h.advance();
+    if (h.phase === 'complete') this.#handComplete();
+    else this.#afterChange();
+  }
+
+  revealBoard(token) {
+    const seat = this.#requireSeat(token);
+    this.#revealNext(seat);
+  }
+
+  #revealNext(seat) {
+    const pr = this.pendingReveal;
+    const h = this.hand;
+    if (!pr || !h || h.handId !== pr.handId || h.phase !== 'roundComplete') return;
+    this.pendingReveal = null;
+    const names = { flop: 'den Flop', turn: 'den Turn', river: 'den River' };
+    if (seat != null) this.#addLog(`${this.seats[seat].name} deckt ${names[pr.next]} auf.`, 'system');
+    // Entscheidet nur noch der River über den Sieger? -> theatralisch aufdecken
+    if (pr.next === 'river') h.dramaticRiver = h.riverDecides();
+    this.#advanceHand();
   }
 
   #step(ms, fn) {
@@ -333,7 +370,27 @@ export class Session {
       const potName = r.pots.length > 1 ? (pot === r.pots[0] ? 'den Hauptpot' : 'einen Sidepot') : 'den Pot';
       this.#addLog(`${names} ${verb} ${potName} (${fmt(pot.amount)})${pot.handName ? ` mit ${pot.handName}` : ''}.`, 'win');
     }
-    this.#step(r.uncontested ? this.delay.uncontested : this.delay.showdown, () => this.#afterHand());
+    // Rabbit Cam: Endet die Hand vor dem River, darf man kurz die restlichen Karten anfordern
+    if (r.uncontested && h.board.length < 5) {
+      this.rabbit = { handId: h.handId, until: Date.now() + this.delay.rabbitWindow, cards: null, by: null };
+      this.#step(this.delay.rabbitWindow, () => this.#afterHand());
+    } else {
+      this.rabbit = null;
+      this.#step(r.uncontested ? this.delay.uncontested : this.delay.showdown, () => this.#afterHand());
+    }
+    this.broadcast();
+  }
+
+  rabbitCam(token) {
+    const seat = this.#requireSeat(token);
+    const rb = this.rabbit;
+    if (!rb || rb.cards || !this.hand || this.hand.handId !== rb.handId || Date.now() > rb.until) return;
+    rb.cards = this.hand.rabbitCards();
+    rb.by = this.seats[seat].name;
+    const suit = { s: '♠', h: '♥', d: '♦', c: '♣' };
+    const label = (c) => `${c[0] === 'T' ? '10' : c[0]}${suit[c[1]]}`;
+    this.#addLog(`🐇 ${rb.by} will die Rabbit Cam sehen: ${rb.cards.map(label).join(' ')}`, 'system');
+    this.#step(this.delay.rabbitShow, () => this.#afterHand());
     this.broadcast();
   }
 
@@ -501,6 +558,15 @@ export class Session {
           : null,
       ),
       hand: hv,
+      reveal:
+        this.pendingReveal && this.hand?.handId === this.pendingReveal.handId
+          ? { next: this.pendingReveal.next, remaining: Math.max(0, this.pendingReveal.until - now) }
+          : null,
+      drama: !!this.hand?.dramaticRiver,
+      rabbit:
+        this.rabbit && this.hand && this.rabbit.handId === this.hand.handId
+          ? { open: !this.rabbit.cards && now < this.rabbit.until, remaining: Math.max(0, this.rabbit.until - now), cards: this.rabbit.cards, by: this.rabbit.by }
+          : null,
       turnRemaining: this.actionDeadline ? Math.max(0, this.actionDeadline - now) : 0,
       turnTotal: this.hand?.toAct != null ? this.config.actionSeconds * 1000 : 0,
       level: {

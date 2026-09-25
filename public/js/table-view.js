@@ -126,9 +126,11 @@ export class TableView {
       if (h.id !== this.handId) await this.#newHand(state);
       await this.#syncFolds(h);
       await this.#syncBets(state);
+      this.drama = !!state.drama;
       await this.#syncBoard(h);
       await this.#syncReveals(h);
       if (h.results && !this.resultsShown) await this.#showResults(state);
+      await this.#syncRabbit(state);
       this.#syncStacks(state);
       this.#syncTurn(h);
       this.#syncActionSounds(h);
@@ -278,6 +280,38 @@ export class TableView {
     await Promise.all(jobs);
   }
 
+  // Entscheidender River: Kamerafahrt, gedimmtes Licht, Herzschlag, langsamer Squeeze
+  async #dramaticRiver(card, slot) {
+    const down = cardQuat(tableYaw(), false);
+    const up = cardQuat(tableYaw(), true);
+    sfx.card();
+    // Fokus auf die Board-Mitte mit leichtem Zug zum River, damit das ganze Board im Bild bleibt
+    const focus = BOARD_POS(2).lerp(slot, 0.3);
+    await Promise.all([this.stage.drama(true, focus), this.#fly(card, slot.clone().setY(0.02), down, 1, { duration: 750, arc: 0.5 })]);
+    let beating = true;
+    const beats = (async () => {
+      while (beating) {
+        sfx.heartbeat();
+        await wait(820);
+      }
+    })();
+    // Kante ganz langsam anheben ...
+    const peek = new THREE.Quaternion().slerpQuaternions(down, up, 0.14);
+    await this.#fly(card, slot.clone().setY(0.28), peek, 1, { duration: 1700, arc: 0 });
+    await wait(550);
+    // ... dann umdrehen
+    await this.#fly(card, slot.clone().setY(0.14), up, 1, { duration: 1300, arc: 0.12 });
+    beating = false;
+    sfx.flip();
+    sfx.sting();
+    card.userData.setHighlight('win');
+    await this.#fly(card, slot, up, 1, { duration: 280, arc: 0 });
+    await wait(950);
+    card.userData.setHighlight(null);
+    await beats;
+    await this.stage.drama(false);
+  }
+
   async #syncBoard(h) {
     const jobs = [];
     const start = this.board.length;
@@ -289,6 +323,10 @@ export class TableView {
       this.board.push(card);
       const delay = (i - start) * 170;
       const slot = BOARD_POS(i);
+      if (i === 4 && this.drama) {
+        jobs.push(this.#dramaticRiver(card, slot));
+        continue;
+      }
       jobs.push(
         this.#fly(card, slot.clone().setY(0.02), cardQuat(tableYaw(), false), 1, { duration: 380, delay, arc: 0.5 }).then(() => {
           sfx.flip();
@@ -297,6 +335,30 @@ export class TableView {
       );
       setTimeout(() => sfx.card(), delay);
     }
+    await Promise.all(jobs);
+  }
+
+  // Rabbit Cam: die Karten, die gekommen wären – bläulich getönt, damit klar ist, dass sie nicht zählen
+  async #syncRabbit(state) {
+    const rb = state.rabbit;
+    if (!rb?.cards || this.rabbitHand === state.hand.id) return;
+    this.rabbitHand = state.hand.id;
+    const start = this.board.length;
+    const jobs = rb.cards.map((code, k) => {
+      const card = createCard(code);
+      card.userData.setHighlight('rabbit');
+      card.position.copy(DECK_POS());
+      card.quaternion.copy(cardQuat(tableYaw(), false));
+      this.scene.add(card);
+      this.board.push(card);
+      const slot = BOARD_POS(start + k);
+      const delay = k * 170;
+      setTimeout(() => sfx.card(), delay);
+      return this.#fly(card, slot.clone().setY(0.02), cardQuat(tableYaw(), false), 1, { duration: 380, delay, arc: 0.5 }).then(() => {
+        sfx.flip();
+        return this.#fly(card, slot, cardQuat(tableYaw(), true), 1, { duration: 320, arc: 0.55 });
+      });
+    });
     await Promise.all(jobs);
   }
 

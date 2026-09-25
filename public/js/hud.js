@@ -1,6 +1,6 @@
 // HTML-Oberfläche über der 3D-Szene.
 import * as THREE from 'three';
-import { SEATS, POT_POS, tableToWorld, isPortrait } from './scene.js';
+import { SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { evaluateBest, rankValue } from '/shared/cards.js';
 import { sfx } from './sound.js';
@@ -114,6 +114,17 @@ export class Hud {
     this.potLabel = document.createElement('div');
     this.potLabel.className = 'potlabel';
     plates.appendChild(this.potLabel);
+    this.rabbitLabel = document.createElement('div');
+    this.rabbitLabel.className = 'rabbitlabel hidden';
+    plates.appendChild(this.rabbitLabel);
+    $('#reveal button').onclick = () => {
+      this.send('reveal');
+      $('#reveal').classList.add('hidden');
+    };
+    $('#rabbit button').onclick = () => {
+      this.send('rabbit');
+      $('#rabbit').classList.add('hidden');
+    };
 
     // Topbar
     $('#topbar').innerHTML = `
@@ -411,6 +422,8 @@ export class Hud {
     this.#syncVideos();
     this.#renderResults(s);
     this.#renderBanner(s);
+    this.#renderRabbit(s);
+    this.#renderReveal(s);
     this.#renderAway(s);
   }
 
@@ -525,6 +538,10 @@ export class Hud {
       if (vs && this.voice) level = this.voice.levels.get(vs.self ? 'self' : vs.id) || 0;
       p.el.style.setProperty('--speak', level > 0.08 ? Math.min(1, level * 1.6).toFixed(2) : '0');
     }
+    if (!this.rabbitLabel.classList.contains('hidden')) {
+      const b = this.stage.project(BOARD_POS(2).add(tableToWorld(0, 0, 1.05)), v);
+      this.rabbitLabel.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)`;
+    }
     if (!this.potLabel.classList.contains('hidden')) {
       // Querformat: über den Pot-Chips; Hochformat: darunter, damit es nicht ins Board ragt
       const off = isPortrait() ? new THREE.Vector3(-0.35, 0, 0.95) : tableToWorld(0, 0, -1.05);
@@ -551,6 +568,14 @@ export class Hud {
         c.style.strokeDashoffset = '126';
         p.el.classList.remove('hurry');
       }
+    }
+    const revealBar = $('#reveal:not(.hidden) .bar');
+    if (revealBar) revealBar.style.transform = `scaleX(${Math.max(0, (this.revealDeadline - performance.now()) / 20000)})`;
+    const rabbitBar = $('#rabbit:not(.hidden) .bar');
+    if (rabbitBar) {
+      const left = this.rabbitDeadline - performance.now();
+      rabbitBar.style.transform = `scaleX(${Math.max(0, left / 5000)})`;
+      if (left <= 0) $('#rabbit').classList.add('hidden');
     }
     const bar = $('#actions .timebar i');
     if (bar && h?.legal) {
@@ -799,6 +824,31 @@ export class Hud {
   }
 
   // ------------------------------------------------------------ Ergebnisse
+
+  // All-in-Runout: nächste Straße auf Klick aufdecken (Balken = automatisches Aufdecken)
+  #renderReveal(s) {
+    const rv = s.reveal;
+    const show = !!rv && s.mySeat != null;
+    const el = $('#reveal');
+    el.classList.toggle('hidden', !show);
+    if (!show) return;
+    const label = { flop: 'Flop aufdecken', turn: 'Turn aufdecken', river: 'River aufdecken' }[rv.next];
+    $('.rv-label', el).textContent = label;
+    this.revealDeadline = performance.now() + rv.remaining;
+  }
+
+  // Rabbit Cam: 5 Sekunden lang anbieten, danach die angeforderten Karten beschriften
+  #renderRabbit(s) {
+    const rb = s.rabbit;
+    const offer = !!rb?.open && s.mySeat != null;
+    const el = $('#rabbit');
+    if (offer && el.classList.contains('hidden')) el.classList.remove('hidden');
+    if (!offer) el.classList.add('hidden');
+    if (offer) this.rabbitDeadline = performance.now() + rb.remaining;
+    const show = !!rb?.cards;
+    this.rabbitLabel.classList.toggle('hidden', !show);
+    if (show) this.rabbitLabel.textContent = `🐇 Rabbit Cam · ${rb.by}`;
+  }
 
   #renderBanner(s) {
     const h = s.hand;

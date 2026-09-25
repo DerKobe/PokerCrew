@@ -282,6 +282,43 @@ export class HandEngine {
     return true;
   }
 
+  // Hängt der Ausgang nur noch vom River ab? (Board mit 4 Karten, alle Hände offen)
+  // Es werden alle ungesehenen Karten als möglicher River durchgespielt.
+  riverDecides() {
+    if (this.board.length !== 4) return false;
+    const active = this.active;
+    if (active.length < 2) return false;
+    const pots = this.computePots();
+    let first = null;
+    for (const river of this.deck) {
+      const board = [...this.board, river];
+      const score = Object.fromEntries(active.map((p) => [p.seat, evaluateBest([...p.cards, ...board]).score]));
+      const sig = pots
+        .map((pot) => {
+          const best = Math.max(...pot.eligible.map((s) => score[s]));
+          return pot.eligible.filter((s) => score[s] === best).join(',');
+        })
+        .join('|');
+      if (first === null) first = sig;
+      else if (sig !== first) return true;
+    }
+    return false;
+  }
+
+  // Rabbit Cam: die Board-Karten, die gekommen wären (inkl. Burn-Cards), ohne das Deck zu verändern
+  rabbitCards() {
+    const deck = this.deck.slice();
+    const out = [];
+    let n = this.board.length;
+    while (n < 5) {
+      deck.pop(); // Burn
+      const count = n === 0 ? 3 : 1;
+      for (let i = 0; i < count; i++) out.push(deck.pop());
+      n += count;
+    }
+    return out;
+  }
+
   computePots() {
     const levels = [...new Set(this.active.filter((p) => p.committed > 0).map((p) => p.committed))].sort((a, b) => a - b);
     const pots = [];

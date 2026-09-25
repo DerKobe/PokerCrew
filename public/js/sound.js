@@ -75,6 +75,23 @@ export const sfx = {
     noise(t, 0.02 + Math.random() * 0.014, { freq: 3600 + Math.random() * 2800, q: 6, gain: 0.3 * vol });
     noise(t, 0.012, { type: 'highpass', freq: 6500, q: 0.7, gain: 0.07 * vol });
   },
+  // Herzschlag (zwei dumpfe Schläge) für den theatralischen River
+  heartbeat() {
+    if (!this.ok) return;
+    const t = ctx.currentTime;
+    tone(t, 62, 0.16, { gain: 0.55, attack: 0.008 });
+    noise(t, 0.06, { type: 'lowpass', freq: 180, gain: 0.35 });
+    tone(t + 0.2, 54, 0.2, { gain: 0.42, attack: 0.008 });
+    noise(t + 0.2, 0.06, { type: 'lowpass', freq: 160, gain: 0.28 });
+  },
+  // Akzent beim Aufdecken des entscheidenden Rivers
+  sting() {
+    if (!this.ok) return;
+    const t = ctx.currentTime;
+    noise(t, 0.35, { type: 'highpass', freq: 1800, sweepTo: 9000, q: 0.5, gain: 0.16, attack: 0.05 });
+    [392, 523.25, 659.25, 783.99].forEach((f) => tone(t + 0.02, f, 1.1, { type: 'triangle', gain: 0.07, attack: 0.03 }));
+    tone(t, 98, 0.5, { gain: 0.3, attack: 0.005 });
+  },
   card() {
     if (!this.ok) return;
     noise(ctx.currentTime, 0.13, { type: 'highpass', freq: 2500, sweepTo: 7000, q: 0.6, gain: 0.22, attack: 0.02 });
