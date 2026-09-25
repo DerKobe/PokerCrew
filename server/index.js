@@ -11,10 +11,12 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 const app = express();
 app.disable('x-powered-by');
-const statics = { maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0 };
-app.use(express.static(path.join(root, 'public'), statics));
-app.use('/shared', express.static(path.join(root, 'shared'), statics));
-app.use('/vendor/three', express.static(path.join(root, 'node_modules/three'), { ...statics, maxAge: '7d' }));
+// Eigene Dateien immer beim Server nachfragen (ETag -> meist nur 304), damit nach einem
+// Deploy sofort alle den neuen Stand haben. three.js ändert sich nur mit Paket-Updates.
+const fresh = { maxAge: 0, setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') };
+app.use(express.static(path.join(root, 'public'), fresh));
+app.use('/shared', express.static(path.join(root, 'shared'), fresh));
+app.use('/vendor/three', express.static(path.join(root, 'node_modules/three'), { maxAge: '7d' }));
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
 const server = createServer(app);
