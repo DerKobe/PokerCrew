@@ -258,6 +258,7 @@ const DICT = {
     tip: {
       fidget: 'Tipp: Spiel mit deinen Chips – klick auf deinen Stack oder halt ihn gedrückt und zieh.',
       gadget: 'Tipp: Klick auf dein Gadget neben dir am Tisch.',
+      toppled: (p) => `💥 ${p.by ?? 'Jemand'} hat deine Chips umgeworfen – klick auf den Haufen, um sie wieder zu stapeln.`,
     },
     log: {
       title: 'Verlauf',
@@ -286,6 +287,8 @@ const DICT = {
       resume: (p) => `${p.name} setzt das Turnier fort.`,
       aborted: (p) => `${p.name} hat das Turnier abgebrochen.`,
       newTournament: 'Neues Turnier – bitte Platz nehmen!',
+      topple: (p) => `💥 ${p.by ?? 'Ein Zuschauer'} hat die Chips von ${p.name} umgeworfen!`,
+      tidy: (p) => `${p.name} stapelt die Chips wieder ordentlich auf.`,
       lateJoin: (p) => `${p.name} steigt nachträglich auf Platz ${p.seat + 1} ein (${fmt(p.stack)} Chips).`,
       chat: (p) => `${p.name ?? 'Zuschauer'}: ${p.text}`,
     },
@@ -455,6 +458,7 @@ const DICT = {
     tip: {
       fidget: 'Tip: play with your chips – click your stack, or press and drag it.',
       gadget: 'Tip: click your gadget next to you at the table.',
+      toppled: (p) => `💥 ${p.by ?? 'Someone'} knocked over your chips – click the pile to stack them up again.`,
     },
     log: {
       title: 'Log',
@@ -483,6 +487,8 @@ const DICT = {
       resume: (p) => `${p.name} resumes the tournament.`,
       aborted: (p) => `${p.name} aborted the tournament.`,
       newTournament: 'New tournament – take your seats!',
+      topple: (p) => `💥 ${p.by ?? 'A spectator'} knocked over ${p.name}'s chips!`,
+      tidy: (p) => `${p.name} stacks the chips back up.`,
       lateJoin: (p) => `${p.name} joins late in seat ${p.seat + 1} (${fmt(p.stack)} chips).`,
       chat: (p) => `${p.name ?? 'Spectator'}: ${p.text}`,
     },

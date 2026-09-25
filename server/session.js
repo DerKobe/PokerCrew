@@ -50,6 +50,7 @@ export class Session {
     this.stepDeadline = 0;
     this.rabbit = null;
     this.pendingReveal = null;
+    this.toppled = {}; // seat -> { seed, by }: chip stacks knocked over as a joke
   }
 
   // ---------- Connections ----------
@@ -93,6 +94,8 @@ export class Session {
     on('rabbit', () => this.rabbitCam(token));
     on('reveal', () => this.revealBoard(token));
     on('fidget', (d) => this.fidget(socket, token, d));
+    on('topple', (d) => this.topple(socket, token, d?.seat));
+    on('tidy', () => this.tidy(token));
     on('voice-join', (d) => this.voiceJoin(socket, d));
     on('voice-signal', (d) => this.voiceSignal(socket, d));
     on('voice-mute', (d) => this.voiceMute(socket, d));
@@ -113,6 +116,7 @@ export class Session {
         s.leaveTimer = setTimeout(() => {
           if (this.phase === 'lobby' && this.seats[seat] === s && !s.connected) {
             this.seats[seat] = null;
+            delete this.toppled[seat];
             this.broadcast();
           }
         }, this.delay.lobbyLeave);
@@ -167,6 +171,7 @@ export class Session {
     const old = this.seatOfToken(token);
     const prevGadget = old != null ? this.seats[old].gadget : null;
     if (old != null) this.seats[old] = null;
+    if (old != null) delete this.toppled[old];
     this.seats[seat] = {
       token,
       name,
@@ -187,6 +192,7 @@ export class Session {
     if (seat == null) return;
     this.#addLog('stand', { name: this.seats[seat].name });
     this.seats[seat] = null;
+    delete this.toppled[seat];
     this.broadcast();
   }
 
@@ -238,6 +244,7 @@ export class Session {
       const free = this.seats.findIndex((s, j) => !s && j < next.seats);
       this.seats[free] = this.seats[i];
       this.seats[i] = null;
+      delete this.toppled[i];
     }
   }
 
@@ -466,6 +473,7 @@ export class Session {
         const s = this.seats[i];
         s.eliminated = true;
         s.place = place--;
+        delete this.toppled[i];
         this.results.push({ seat: i, name: s.name, place: s.place });
         this.#addLog('bust', { name: s.name, place: s.place }, 'bust');
       }
@@ -562,6 +570,32 @@ export class Session {
     });
   }
 
+  // Knock over another player's chip stack (a joke between friends). It stays a mess until the
+  // owner tidies it up; the seed makes the mess look the same on every client.
+  topple(socket, token, seat) {
+    seat = Number(seat);
+    const target = this.seats[seat];
+    if (!Number.isInteger(seat) || !target || target.eliminated || this.toppled[seat]) return;
+    if (this.seatOfToken(token) === seat || this.phase === 'finished') return;
+    const c = this.clients.get(socket.id);
+    const now = Date.now();
+    if (c.toppleAt && now - c.toppleAt < 1500) return;
+    c.toppleAt = now;
+    const own = this.seatOfToken(token);
+    const by = own != null ? this.seats[own].name : null;
+    this.toppled[seat] = { seed: randomInt(1, 2 ** 31), by };
+    this.#addLog('topple', { by, name: target.name }, 'system');
+    this.broadcast();
+  }
+
+  tidy(token) {
+    const seat = this.seatOfToken(token);
+    if (seat == null || !this.toppled[seat]) return;
+    delete this.toppled[seat];
+    this.#addLog('tidy', { name: this.seats[seat].name }, 'system');
+    this.broadcast();
+  }
+
   // Click on your own gadget: play the animation for everyone else
   playGadget(socket, token) {
     const seat = this.seatOfToken(token);
@@ -616,6 +650,7 @@ export class Session {
       mySeat,
       paused: this.paused,
       lateReg: this.lateRegOpen(),
+      toppled: this.toppled,
       seats: this.seats.slice(0, this.config.seats).map((s, i) =>
         s
           ? {

@@ -48,7 +48,7 @@ const socket = io({
 });
 const send = (ev, data) => socket.emit(ev, data);
 const hud = new Hud({ stage, view, send, voice: null });
-new ChipFidget({ stage, view, send, socket });
+const fidget = new ChipFidget({ stage, view, send, socket });
 const gadgets = new Gadgets({ stage, send, socket });
 stage.onLayout = () => {
   view.relayout();
@@ -68,6 +68,7 @@ socket.on('state', (s) => {
   stage.setLook(s.config);
   view.update(s);
   gadgets.update(s);
+  fidget.update(s);
   hud.update(s);
   stage.idle = s.phase !== 'running';
 });

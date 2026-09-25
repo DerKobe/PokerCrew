@@ -632,6 +632,9 @@ export class Hud {
       localStorage.setItem('pc.gadgetHint', '1');
       setTimeout(() => this.toast(t('tip.gadget')), 12000);
     }
+    // Somebody knocked over my chips: tell me how to clean up
+    const mine = s.mySeat != null ? s.toppled?.[s.mySeat] : null;
+    if (prev && mine && mine.seed !== prev.toppled?.[s.mySeat]?.seed) this.toast(t('tip.toppled', { by: mine.by }));
     this.state = s;
     this.stateAt = performance.now();
     document.body.dataset.phase = s.phase;

@@ -6,6 +6,7 @@ import { CHIP_H, buildStack } from './chips.js';
 import { rng } from './textures.js';
 import { ease } from './tween.js';
 import { sfx } from './sound.js';
+import { Fall, Tidy } from './topple.js';
 
 const D = 0.53; // column spacing ≈ chip diameter + gap
 const MAX_MERGE = 24; // larger columns are split instead of mixed with the neighbour
@@ -242,6 +243,9 @@ export class ChipFidget {
     this.ndc = new THREE.Vector2();
     this.lastSent = 0;
     this.lastHover = 0;
+    this.toppled = {}; // seat -> { seed, by } from the server
+    this.seenSeed = {}; // seat -> seed whose fall was already shown (a rebuilt stack then snaps)
+    this.falls = new Map(); // stack group -> Fall | Tidy animation
     const el = stage.renderer.domElement;
     this.el = el;
     el.style.touchAction = 'none';
@@ -260,6 +264,37 @@ export class ChipFidget {
     });
   }
 
+  // Server state: which stacks are knocked over. On the first state, existing messes snap into place.
+  update(state) {
+    this.toppled = state.toppled || {};
+    if (!this.synced) {
+      this.synced = true;
+      for (const [seat, t] of Object.entries(this.toppled)) this.seenSeed[seat] = t.seed;
+    }
+  }
+
+  #isToppled(seat) {
+    return seat != null && !!this.toppled[seat];
+  }
+
+  // Another player's stack under the mouse (for knocking it over)
+  #pickOther(e) {
+    const me = this.view.mySeat;
+    const groups = this.view.seats.map((s, seat) => (seat !== me && s.stack ? s.stack : null)).filter(Boolean);
+    if (!groups.length) return null;
+    this.#ray(e);
+    const hit = this.raycaster.intersectObjects(groups, true)[0];
+    if (!hit) return null;
+    const seat = this.view.seats.findIndex((s) => s.stack === hit.object.parent);
+    return seat >= 0 ? seat : null;
+  }
+
+  #ray(e) {
+    const rect = this.el.getBoundingClientRect();
+    this.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(this.ndc, this.stage.camera);
+  }
+
   #myStack() {
     const seat = this.view.mySeat;
     if (seat == null) return null;
@@ -269,9 +304,7 @@ export class ChipFidget {
   #pick(e) {
     const group = this.#myStack();
     if (!group) return null;
-    const rect = this.el.getBoundingClientRect();
-    this.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
-    this.raycaster.setFromCamera(this.ndc, this.stage.camera);
+    this.#ray(e);
     const hit = this.raycaster.intersectObjects(group.children, false)[0];
     return hit ? { group, pile: hit.object.userData.pile } : null;
   }
@@ -302,15 +335,30 @@ export class ChipFidget {
   }
 
   #down(e) {
+    const mine = this.#isToppled(this.view.mySeat);
     if (e.button === 2) {
       // Right-click on your own stack: sort mixed columns back by value
       const hit = this.#pick(e);
-      if (hit && this.#sort(this.view.mySeat, hit.group, 1)) this.send('fidget', { type: 'sort' });
+      if (hit && !mine && this.#sort(this.view.mySeat, hit.group, 1)) this.send('fidget', { type: 'sort' });
       return;
     }
     if (e.button !== 0) return;
     const hit = this.#pick(e);
-    if (!hit) return;
+    if (!hit) {
+      // Someone else's stack: knock it over (once; the owner has to tidy it up)
+      const seat = this.#pickOther(e);
+      if (seat != null && !this.#isToppled(seat)) {
+        e.preventDefault();
+        this.send('topple', { seat });
+      }
+      return;
+    }
+    if (mine) {
+      // Your own messy pile: stack it up again
+      e.preventDefault();
+      this.send('tidy');
+      return;
+    }
     const seed = Math.floor(Math.random() * 1e9);
     const entry = this.#start(this.view.mySeat, hit.group, hit.pile, seed, 1);
     if (!entry) return;
@@ -320,7 +368,7 @@ export class ChipFidget {
     } catch {}
     this.drag = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, entry };
     this.stage.freezeParallax = true;
-    this.el.style.cursor = 'grabbing';
+    this.stage.setCursor('chips', 'grabbing');
     this.send('fidget', { type: 'start', pile: hit.pile, seed });
   }
 
@@ -343,8 +391,13 @@ export class ChipFidget {
     const now = performance.now();
     if (now - this.lastHover < 60) return;
     this.lastHover = now;
-    const want = this.#pick(e) ? 'grab' : '';
-    if (want || this.el.style.cursor === 'grab') this.el.style.cursor = want;
+    let want = '';
+    if (this.#pick(e)) want = this.#isToppled(this.view.mySeat) ? 'pointer' : 'grab';
+    else {
+      const seat = this.#pickOther(e);
+      if (seat != null && !this.#isToppled(seat)) want = 'pointer';
+    }
+    this.stage.setCursor('chips', want);
   }
 
   #up() {
@@ -352,7 +405,7 @@ export class ChipFidget {
     const { entry, moved, t } = this.drag;
     this.drag = null;
     this.stage.freezeParallax = false;
-    this.el.style.cursor = 'grab';
+    this.stage.setCursor('chips', 'grab');
     const r = entry.riffle;
     if (r.done) return;
     // Short click: quick automatic riffle; otherwise finish the rest briskly
@@ -363,7 +416,7 @@ export class ChipFidget {
 
   #remote(d) {
     const seat = d?.seat;
-    if (seat == null || seat === this.view.mySeat || document.hidden) return;
+    if (seat == null || seat === this.view.mySeat || document.hidden || this.#isToppled(seat)) return;
     const group = this.view.seats[seat]?.stack;
     if (!group) return;
     if (d.type === 'start') {
@@ -384,10 +437,37 @@ export class ChipFidget {
     }
   }
 
+  // Bring every stack in line with the server: fall over, stay a mess (also after the stack was
+  // rebuilt because its amount changed) or get tidied up
+  #syncTopple(dt) {
+    this.view.seats.forEach((s, seat) => {
+      const g = s.stack;
+      if (!g) return;
+      const want = this.toppled[seat]?.seed ?? null;
+      const has = g.userData.toppled ?? null;
+      if (want === has) return;
+      const volume = seat === this.view.mySeat ? 1 : 0.6;
+      this.#finish(seat); // a running riffle ends first
+      this.falls.get(g)?.finish();
+      if (want != null) {
+        const instant = document.hidden || this.seenSeed[seat] === want;
+        this.falls.set(g, new Fall(g, want, { instant, volume }));
+        this.seenSeed[seat] = want;
+      } else {
+        this.falls.set(g, new Tidy(g, { instant: document.hidden, volume }));
+      }
+      g.userData.toppled = want;
+    });
+    for (const [g, a] of this.falls) {
+      if (!g.parent || a.done || a.update(dt)) this.falls.delete(g);
+    }
+  }
+
   #frame() {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastT) / 1000);
     this.lastT = now;
+    this.#syncTopple(dt);
     for (const [seat, e] of this.active) {
       // The stack was rebuilt in the meantime (amount changed) -> discard
       if (this.view.seats[seat]?.stack !== e.group) {
