@@ -7,6 +7,8 @@ import {
 } from './textures.js';
 import { updateTweens, tween, ease } from './tween.js';
 import { MAX_SEATS } from '/shared/config.js';
+import { CARD_W, CARD_H } from './cards.js';
+import { CHIP_R } from './chips.js';
 
 export { MAX_SEATS };
 
@@ -103,10 +105,10 @@ export function seatAnchors(pos, me = pos === 0, count = 5) {
     edge: p,
     cards: me ? raw(0.3, 0) : at(1.4, 0, 0, 0.8), // own seat: bottom edge of the cards
     stack: me ? raw(0.95, portrait ? 1.8 : 2.1) : at(1.0, 1.75, 0, 1.0),
-    bet: me ? raw(2.9, 0) : clearOfPot(at(3.0, 0.2, 0, 1.2), right),
+    bet: me ? raw(portrait ? 3.4 : 2.9, 0) : clearOfBoard(clearOfPot(at(3.0, 0.2, 0, 1.2), right), n),
     button: me ? raw(1.2, portrait ? -1.7 : -1.9) : at(1.9, -1.45, 0, 0.55),
     plate: me ? raw(-0.95, 0, 0.6) : raw(-0.75, 0, 0.6),
-    ring: me ? raw(0.95, 0, 0.012) : at(1.4, 0, 0.012, 0.8),
+    ring: me ? raw(portrait ? 1.35 : 0.95, 0, 0.012) : at(1.4, 0, 0.012, 0.8),
     // trophies stand in a row left of the cards; `offset` = distance along the row
     trophy: (offset) => (me ? raw(0.5, -1.65 - offset) : at(0.75, -1.55 - offset, 0, 0.45)),
   };
@@ -159,9 +161,38 @@ export const tableYaw = () => (portrait ? Math.PI / 2 : 0);
 export function tableToWorld(x, y, z) {
   return portrait ? new THREE.Vector3(z, y, -x) : new THREE.Vector3(x, y, z);
 }
-export const BOARD_POS = (i) => tableToWorld((i - 2) * 1.14, 0.02, BOARD_Z);
-export const POT_POS = () => tableToWorld(0, 0, -1.4);
 export const DECK_POS = () => tableToWorld(0, 0.9, -2.2);
+
+// Portrait (phones): a row of five cards would run sideways along the rotated table and stay
+// tiny. Instead the board is a 3 + 2 grid of large upright cards, the pot sits above it and
+// your own hole cards are larger too.
+export const PORTRAIT_BOARD = { scale: 1.5, dx: 1.6, dz: 1.11, cz: -0.35 };
+const PB = PORTRAIT_BOARD;
+const PB_HALF_W = PB.dx + (CARD_W * PB.scale) / 2;
+const PB_HALF_D = PB.dz + (CARD_H * PB.scale) / 2;
+export const boardScale = () => (portrait ? PB.scale : 1);
+export const ownCardScale = () => (portrait ? 1.7 : 1.05);
+export function BOARD_POS(i) {
+  if (!portrait) return tableToWorld((i - 2) * 1.14, 0.02, BOARD_Z);
+  const flop = i < 3;
+  return new THREE.Vector3((flop ? i - 1 : i - 3.5) * PB.dx, 0.02, PB.cz + (flop ? -PB.dz : PB.dz));
+}
+export const BOARD_CENTER = () => (portrait ? new THREE.Vector3(0, 0.02, PB.cz) : BOARD_POS(2));
+// Spot right below the board (e.g. for a label)
+export const BELOW_BOARD = () => (portrait ? new THREE.Vector3(0, 0, PB.cz + PB_HALF_D + 0.4) : BOARD_POS(2).add(tableToWorld(0, 0, 1.05)));
+export const POT_POS = () => (portrait ? new THREE.Vector3(0, 0, PB.cz - PB_HALF_D - 0.75) : tableToWorld(0, 0, -1.4));
+
+// Portrait: move a bet that would land on the board outwards (towards its player) until it is clear
+function clearOfBoard(v, n) {
+  if (!portrait) return v;
+  const margin = CHIP_R + 0.12;
+  for (let i = 0; i < 40; i++) {
+    const inside = Math.abs(v.x) < PB_HALF_W + margin && Math.abs(v.z - PB.cz) < PB_HALF_D + margin;
+    if (!inside) break;
+    v.addScaledVector(n, 0.1);
+  }
+  return v;
+}
 
 export class Stage {
   constructor(container) {
@@ -202,7 +233,13 @@ export class Stage {
     this.turnRing = this.#turnRing();
 
     this.onFrame = [];
-    window.addEventListener('resize', () => this.resize());
+    // Mobile browsers (iOS Safari in particular) sometimes fire 'resize' before the new viewport
+    // size can be read, e.g. on rotation or when the toolbars collapse. A ResizeObserver reports
+    // the size the container actually ends up with, so the canvas never keeps a stale size.
+    const onResize = () => this.resize();
+    window.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
+    if (window.ResizeObserver) new ResizeObserver(onResize).observe(container);
     window.addEventListener('pointermove', (e) => {
       this.mouse.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
     });
@@ -247,14 +284,18 @@ export class Stage {
     this.renderer.domElement.style.cursor = Object.values(this.cursors).find(Boolean) || '';
   }
 
+  #printFelt() {
+    const old = this.feltMat.map;
+    this.feltMat.map = feltTexture(this.feltTitle, this.feltColor, portrait ? PORTRAIT_BOARD : null);
+    old?.dispose();
+  }
+
   // Table look from the tournament config: name + colour on the felt, material of the rim
   setLook({ title, felt, rim }) {
     if ((title && title !== this.feltTitle) || (felt && felt !== this.feltColor)) {
       this.feltTitle = title || this.feltTitle;
       this.feltColor = felt || this.feltColor;
-      const old = this.feltMat.map;
-      this.feltMat.map = feltTexture(this.feltTitle, this.feltColor);
-      old.dispose();
+      this.#printFelt();
     }
     if (rim && rim !== this.rimKind) {
       this.rimKind = rim;
@@ -455,13 +496,17 @@ export class Stage {
   resize() {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
-    this.renderer.setSize(w, h);
+    if (w === this.size?.w && h === this.size?.h) return;
+    this.size = { w, h };
+    // false: only the drawing buffer is resized; the canvas always fills the container via CSS
+    this.renderer.setSize(w, h, false);
     const aspect = w / h;
     this.camera.aspect = aspect;
     const wantPortrait = aspect < 0.85;
     if (wantPortrait !== portrait) {
       portrait = wantPortrait;
       this.table.rotation.y = tableYaw();
+      this.#printFelt();
       this.onLayout?.();
     }
     // The visible area (table + nameplates) has to fit

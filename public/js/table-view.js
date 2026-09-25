@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { createCard, cardQuat, CARD_H } from './cards.js';
 import { buildStack } from './chips.js';
-import { seatAnchors, BOARD_POS, POT_POS, DECK_POS, MAX_SEATS, tableYaw, tableToWorld } from './scene.js';
+import { seatAnchors, BOARD_POS, BOARD_CENTER, POT_POS, DECK_POS, MAX_SEATS, tableYaw, tableToWorld, boardScale, ownCardScale } from './scene.js';
 import { tween, ease, wait, setSpeed, finishAllTweens } from './tween.js';
 import { sfx } from './sound.js';
 
@@ -50,7 +50,8 @@ export class TableView {
     if (me) {
       // Like real, lifted cards: the bottom edge rests on the felt and the card is
       // tilted around that edge towards the camera (so it never rotates into the table).
-      const scale = 1.05; // only slightly larger than the board (1.0), matching the other cards
+      // landscape: only slightly larger than the board (1.0); portrait (phones): much larger
+      const scale = ownCardScale();
       const tilt = faceUp ? 0.62 : 0;
       const h = CARD_H * scale;
       const inward = A.normal.clone().negate();
@@ -59,7 +60,7 @@ export class TableView {
       const pos = A.cards
         .clone()
         .setY(0.035)
-        .addScaledVector(A.right, (i - 0.5) * 0.78)
+        .addScaledVector(A.right, (i - 0.5) * 0.74 * scale)
         .addScaledVector(up, h / 2)
         .addScaledVector(faceNormal, i * 0.03);
       return { pos, quat: cardQuat(A.yaw - (i - 0.5) * 0.08, faceUp, tilt), scale };
@@ -286,34 +287,40 @@ export class TableView {
 
   // Deciding river: camera move, dimmed light, heartbeat, slow squeeze
   async #dramaticRiver(card, slot) {
-    const down = cardQuat(tableYaw(), false);
-    const up = cardQuat(tableYaw(), true);
+    const down = cardQuat(0, false);
+    const up = cardQuat(0, true);
+    const sc = boardScale();
     sfx.card();
     // Focus on the board centre, pulled slightly towards the river so the whole board stays in view
-    const focus = BOARD_POS(2).lerp(slot, 0.3);
-    await Promise.all([this.stage.drama(true, focus), this.#fly(card, slot.clone().setY(0.02), down, 1, { duration: 750, arc: 0.5 })]);
+    const focus = BOARD_CENTER().lerp(slot, 0.3);
     let beating = true;
-    const beats = (async () => {
-      while (beating) {
-        sfx.heartbeat();
-        await wait(820);
-      }
-    })();
-    // lift the edge very slowly ...
-    const peek = new THREE.Quaternion().slerpQuaternions(down, up, 0.14);
-    await this.#fly(card, slot.clone().setY(0.28), peek, 1, { duration: 1700, arc: 0 });
-    await wait(550);
-    // ... then flip it
-    await this.#fly(card, slot.clone().setY(0.14), up, 1, { duration: 1300, arc: 0.12 });
-    beating = false;
-    sfx.flip();
-    sfx.sting();
-    card.userData.setHighlight('win');
-    await this.#fly(card, slot, up, 1, { duration: 280, arc: 0 });
-    await wait(950);
-    card.userData.setHighlight(null);
-    await beats;
-    await this.stage.drama(false);
+    try {
+      await Promise.all([this.stage.drama(true, focus), this.#fly(card, slot.clone().setY(0.02), down, sc, { duration: 750, arc: 0.5 })]);
+      const beats = (async () => {
+        while (beating) {
+          sfx.heartbeat();
+          await wait(820);
+        }
+      })();
+      // lift the edge very slowly ...
+      const peek = new THREE.Quaternion().slerpQuaternions(down, up, 0.14);
+      await this.#fly(card, slot.clone().setY(0.28), peek, sc, { duration: 1700, arc: 0 });
+      await wait(550);
+      // ... then flip it
+      await this.#fly(card, slot.clone().setY(0.14), up, sc, { duration: 1300, arc: 0.12 });
+      beating = false;
+      sfx.flip();
+      sfx.sting();
+      card.userData.setHighlight('win');
+      await this.#fly(card, slot, up, sc, { duration: 280, arc: 0 });
+      await wait(950);
+      card.userData.setHighlight(null);
+      await beats;
+    } finally {
+      // never leave the camera zoomed in, even if something above failed
+      beating = false;
+      await this.stage.drama(false);
+    }
   }
 
   async #syncBoard(h) {
@@ -332,9 +339,9 @@ export class TableView {
         continue;
       }
       jobs.push(
-        this.#fly(card, slot.clone().setY(0.02), cardQuat(tableYaw(), false), 1, { duration: 380, delay, arc: 0.5 }).then(() => {
+        this.#fly(card, slot.clone().setY(0.02), cardQuat(0, false), boardScale(), { duration: 380, delay, arc: 0.5 }).then(() => {
           sfx.flip();
-          return this.#fly(card, slot, cardQuat(tableYaw(), true), 1, { duration: 320, arc: 0.55 });
+          return this.#fly(card, slot, cardQuat(0, true), boardScale(), { duration: 320, arc: 0.55 });
         }),
       );
       setTimeout(() => sfx.card(), delay);
@@ -358,9 +365,9 @@ export class TableView {
       const slot = BOARD_POS(start + k);
       const delay = k * 170;
       setTimeout(() => sfx.card(), delay);
-      return this.#fly(card, slot.clone().setY(0.02), cardQuat(tableYaw(), false), 1, { duration: 380, delay, arc: 0.5 }).then(() => {
+      return this.#fly(card, slot.clone().setY(0.02), cardQuat(0, false), boardScale(), { duration: 380, delay, arc: 0.5 }).then(() => {
         sfx.flip();
-        return this.#fly(card, slot, cardQuat(tableYaw(), true), 1, { duration: 320, arc: 0.55 });
+        return this.#fly(card, slot, cardQuat(0, true), boardScale(), { duration: 320, arc: 0.55 });
       });
     });
     await Promise.all(jobs);
@@ -475,7 +482,6 @@ export class TableView {
     if (amount <= 0) return;
     const g = buildStack(amount, { seed: 5, layout: 'row', maxChips: 80 });
     g.position.copy(POT_POS());
-    g.rotation.y = tableYaw();
     this.scene.add(g);
     this.pot = g;
   }
@@ -520,7 +526,8 @@ export class TableView {
     ring.position.copy(A.ring);
     ring.rotation.y = A.yaw;
     const me = this.isMe(h.toAct);
-    ring.scale.set(me ? 1.2 : 1.1, 1, me ? 0.95 : 0.9);
+    const big = me ? ownCardScale() / 1.05 : 1;
+    ring.scale.set(me ? 1.2 * big : 1.1, 1, me ? 0.95 * big : 0.9);
     ring.visible = true;
   }
 

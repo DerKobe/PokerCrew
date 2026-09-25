@@ -143,10 +143,11 @@ function stadiumPath(ctx, cx, cy, a, r) {
   ctx.closePath();
 }
 
-// The print is fixed to the table: in portrait it rotates with the table (like board and pot).
-// `title` is the tournament name printed between the board and your own seat.
+// The print is fixed to the table and rotates with it in portrait. `title` is the tournament
+// name printed between the board and your own seat. `grid` (portrait only) describes the 3 + 2
+// board of large upright cards; then slots, name and lettering are printed upright for the viewer.
 export const FELT_COLORS = { green: '#0f6b43', red: '#6c1219', blue: '#123f6e' };
-export function feltTexture(title = 'PokerCrew', felt = 'green') {
+export function feltTexture(title = 'PokerCrew', felt = 'green', grid = null) {
   const color = FELT_COLORS[felt] || FELT_COLORS.green;
   const W = 2048;
   const H = Math.round((W * FELT_D) / FELT_W);
@@ -178,28 +179,46 @@ export function feltTexture(title = 'PokerCrew', felt = 'green') {
   ctx.stroke();
   ctx.restore();
 
-  // From here on in table coordinates (1 = one table unit)
+  // From here on in table coordinates (1 = one table unit); in portrait in world coordinates,
+  // i.e. rotated so that everything reads upright on screen
   ctx.save();
   ctx.setTransform(k, 0, 0, k, cx, cy);
+  if (grid) ctx.rotate(Math.PI / 2);
 
   // Card slots for the board
   ctx.strokeStyle = 'rgba(236, 214, 150, 0.16)';
   ctx.lineWidth = 2.5 / k;
-  for (let i = 0; i < 5; i++) {
-    roundRect(ctx, (i - 2) * 1.14 - 0.54, BOARD_Z - 0.74, 1.08, 1.48, 0.1);
-    ctx.stroke();
+  let below = 1.12; // centre line of the name
+  let above = -(TABLE.r - 1.95) - 0.26; // lettering
+  if (grid) {
+    const w = 1.08 * grid.scale;
+    const h = 1.48 * grid.scale;
+    for (let i = 0; i < 5; i++) {
+      const flop = i < 3;
+      const x = (flop ? i - 1 : i - 3.5) * grid.dx;
+      const z = grid.cz + (flop ? -grid.dz : grid.dz);
+      roundRect(ctx, x - w / 2, z - h / 2, w, h, 0.12);
+      ctx.stroke();
+    }
+    below = grid.cz + grid.dz + h / 2 + 1.05;
+    above = grid.cz - grid.dz - h / 2 - 2.1;
+  } else {
+    for (let i = 0; i < 5; i++) {
+      roundRect(ctx, (i - 2) * 1.14 - 0.54, BOARD_Z - 0.74, 1.08, 1.48, 0.1);
+      ctx.stroke();
+    }
   }
 
   // Tournament name between the board and your own seat, framed by suit symbols.
   // Long names get a smaller font so name + suits stay within the width of the board.
   ctx.save();
-  ctx.translate(0, 1.12);
+  ctx.translate(0, below);
   ctx.scale(1 / k, 1 / k);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   let size = 0.5 * k;
   ctx.font = `italic 700 ${size}px ${SERIF}`;
-  const maxW = 5.2 * k;
+  const maxW = (grid ? 3.4 : 5.2) * k;
   const w0 = ctx.measureText(title).width;
   if (w0 > maxW) {
     size = Math.max(0.24 * k, (size * maxW) / w0);
@@ -217,7 +236,7 @@ export function feltTexture(title = 'PokerCrew', felt = 'green') {
 
   // Lettering above the pot
   ctx.save();
-  ctx.translate(0, -(TABLE.r - 1.95) - 0.26);
+  ctx.translate(0, above);
   ctx.scale(1 / k, 1 / k);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

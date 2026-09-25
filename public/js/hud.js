@@ -1,6 +1,6 @@
 // HTML interface on top of the 3D scene.
 import * as THREE from 'three';
-import { MAX_SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
+import { MAX_SEATS, POT_POS, BELOW_BOARD, tableToWorld, isPortrait } from './scene.js';
 import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX, FELTS, RIMS, CARD_BACKS } from '/shared/config.js';
 import { cardBackPreview } from './textures.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
@@ -223,7 +223,17 @@ export class Hud {
       <div class="log-body"><ul class="log-list"></ul>
       <form class="chat"><input maxlength="200" data-i18n-ph="log.placeholder" autocomplete="off"><button data-i18n="log.send"></button></form></div>`;
     const logEl = $('#log');
-    if (localStorage.getItem('pc.logOpen') !== '0' && window.innerWidth > 800) logEl.classList.add('open');
+    // On phones the feed would cover the table: closed by default, and closed again whenever the
+    // window becomes phone-sized (e.g. rotating a tablet); the saved desktop preference is kept.
+    const phone = window.matchMedia('(max-width: 800px)');
+    if (localStorage.getItem('pc.logOpen') !== '0' && !phone.matches) logEl.classList.add('open');
+    phone.addEventListener('change', () => {
+      if (phone.matches) logEl.classList.remove('open');
+    });
+    // ... and a tap anywhere else puts it away again
+    document.addEventListener('pointerdown', (e) => {
+      if (phone.matches && !logEl.contains(e.target)) logEl.classList.remove('open');
+    });
     $('#log-toggle').onclick = () => {
       logEl.classList.toggle('open');
       localStorage.setItem('pc.logOpen', logEl.classList.contains('open') ? '1' : '0');
@@ -782,12 +792,12 @@ export class Hud {
       p.el.style.setProperty('--speak', level > 0.08 ? Math.min(1, level * 1.6).toFixed(2) : '0');
     }
     if (!this.rabbitLabel.classList.contains('hidden')) {
-      const b = this.stage.project(BOARD_POS(2).add(tableToWorld(0, 0, 1.05)), v);
+      const b = this.stage.project(BELOW_BOARD(), v);
       this.rabbitLabel.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)`;
     }
     if (!this.potLabel.classList.contains('hidden')) {
-      // Landscape: above the pot chips; portrait: below them so it does not overlap the board
-      const off = isPortrait() ? new THREE.Vector3(-0.35, 0, 0.95) : tableToWorld(0, 0, -1.05);
+      // above the pot chips (in portrait the pot sits above the board)
+      const off = isPortrait() ? new THREE.Vector3(0, 0, -0.9) : tableToWorld(0, 0, -1.05);
       const b = this.stage.project(POT_POS().add(off), v);
       this.potLabel.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)`;
     }
