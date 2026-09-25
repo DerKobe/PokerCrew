@@ -107,6 +107,10 @@ export function seatAnchors(pos, me = pos === 0, count = 5) {
     button: me ? raw(1.2, portrait ? -1.7 : -1.9) : at(1.9, -1.45, 0, 0.55),
     plate: me ? raw(-0.95, 0, 0.6) : raw(-0.75, 0, 0.6),
     ring: me ? raw(0.95, 0, 0.012) : at(1.4, 0, 0.012, 0.8),
+    // trophies stand in a row left of the cards; further copies of the same trophy line up
+    // behind the first one (towards the table centre)
+    trophy: (slot, copy = 0) =>
+      me ? raw(0.5 + copy * 0.36, -1.65 - slot * 0.78 - copy * 0.12) : at(0.75 + copy * 0.36, -1.55 - slot * 0.78 - copy * 0.12, 0, 0.45),
   };
 }
 
@@ -188,7 +192,7 @@ export class Stage {
     this.idle = true;
     this.feltTitle = 'PokerCrew';
     this.feltColor = 'green';
-    this.rim = 'wood';
+    this.rimKind = 'wood'; // material of the ring around the felt (this.rim is the rim light)
     this.fixed = false;
     this.motionK = 1;
 
@@ -254,8 +258,8 @@ export class Stage {
       this.feltMat.map = feltTexture(this.feltTitle, this.feltColor);
       old.dispose();
     }
-    if (rim && rim !== this.rim) {
-      this.rim = rim;
+    if (rim && rim !== this.rimKind) {
+      this.rimKind = rim;
       const m = this.rimMat;
       if (rim === 'wood') {
         m.map = this.woodTex;

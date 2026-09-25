@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateBest, evaluate5 } from '../shared/cards.js';
 import { HandEngine } from '../server/engine.js';
+import { trophiesFor } from '../server/trophies.js';
 
 const score = (s) => evaluateBest(s.split(' ')).score;
 
@@ -242,3 +243,43 @@ test('River decides: only when the winner depends on the river', () => {
   const dead = run(['As', '2h', 'Ad', '3h', '4c', 'Ah', 'Ac', '7c', '5d', '8d', '5s', 'Qs']);
   assert.equal(dead.riverDecides(), false);
 });
+
+test('Trophies: 7-2 win, cracked aces and River Rat at a checked-down showdown', () => {
+  // button = seat 0, dealing starts with seat 1
+  const deck = stackedDeck([
+    '7h', 'As', '2c', 'Ad', // seat 1: 7-2, seat 0: A-A
+    '3c', 'Kd', '7d', '9s', // burn + flop
+    '4c', '4h', // burn + turn: aces still ahead of a pair of sevens
+    '5c', '2h', // burn + river: 7-2 makes two pair and wins
+  ]);
+  const h = new HandEngine({ players: [0, 1].map((seat) => ({ seat, stack: 1000 })), buttonSeat: 0, sb: 5, bb: 10, deck });
+  checkDown(h);
+  const got = trophiesFor(h).map((x) => `${x.seat}:${x.kind}`).sort();
+  assert.deepEqual(got, ['0:crackedAces', '1:riverRat', '1:sevenDeuce']);
+});
+
+test('Trophies: tequila only when the whole stack was at risk and survived', () => {
+  const allInPreflop = (stacks, cards) => {
+    const deck = stackedDeck([...cards, '3c', '8d', '9s', 'Jh', '4c', '5s', '6c', '2d']);
+    const h = new HandEngine({ players: [0, 1].map((seat) => ({ seat, stack: stacks[seat] })), buttonSeat: 0, sb: 5, bb: 10, deck });
+    h.act(0, 'allin');
+    h.act(1, 'call');
+    while (h.phase !== 'complete') h.advance();
+    return trophiesFor(h).map((x) => `${x.seat}:${x.kind}`);
+  };
+  // short stack (seat 0) shoves with aces and doubles up
+  assert.deepEqual(allInPreflop([1000, 3000], ['Kh', 'As', 'Kd', 'Ad']), ['0:tequila']);
+  // the big stack shoves and wins: it was never at risk -> nothing
+  assert.deepEqual(allInPreflop([3000, 1000], ['Kh', 'As', 'Kd', 'Ad']), []);
+  // the short stack (seat 1) calls off everything and wins
+  assert.deepEqual(allInPreflop([3000, 1000], ['Ah', 'Ks', 'Ad', 'Kd']), ['1:tequila']);
+});
+
+function checkDown(h) {
+  while (h.phase !== 'complete') {
+    if (h.phase === 'betting') {
+      const l = h.legalActions(h.toAct);
+      h.act(h.toAct, l.canCheck ? 'check' : 'call');
+    } else h.advance();
+  }
+}

@@ -6,6 +6,7 @@ import { audioContext } from './sound.js';
 import { preloadCardArt } from './textures.js';
 import { ChipFidget } from './fidget.js';
 import { Gadgets } from './gadgets.js';
+import { Trophies } from './trophies.js';
 import { t } from './i18n.js';
 
 // Entering needs a click so the browser allows audio playback and microphone access.
@@ -50,12 +51,14 @@ const send = (ev, data) => socket.emit(ev, data);
 const hud = new Hud({ stage, view, send, voice: null });
 const fidget = new ChipFidget({ stage, view, send, socket });
 const gadgets = new Gadgets({ stage, send, socket });
+const trophies = new Trophies({ stage, view });
 stage.onLayout = () => {
   view.relayout();
   gadgets.relayout();
+  trophies.relayout();
 };
 // Developer aid: ?debug in the URL exposes the scene, table view and gadgets in the console
-if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { __stage: stage, __view: view, __gadgets: gadgets });
+if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { __stage: stage, __view: view, __gadgets: gadgets, __trophies: trophies });
 let iceServers = null;
 let voice = null;
 
@@ -69,6 +72,7 @@ socket.on('state', (s) => {
   view.update(s);
   gadgets.update(s);
   fidget.update(s);
+  trophies.update(s);
   hud.update(s);
   stage.idle = s.phase !== 'running';
 });

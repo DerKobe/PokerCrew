@@ -215,6 +215,13 @@ const DICT = {
       go: (p) => `Platz ${p.n} nehmen`,
       cancel: 'Abbrechen',
     },
+    trophy: {
+      sevenDeuce: { name: 'Sieben-Zwei', desc: 'Einen Showdown mit 7-2 gewonnen – der schlechtesten Starthand im Poker.' },
+      tequila: { name: 'Tequila überlebt', desc: 'Mit dem ganzen Stack all-in gegangen und überlebt.' },
+      crackedAces: { name: 'Geknackte Asse', desc: 'Mit zwei Assen einen Showdown verloren.' },
+      riverRat: { name: 'River Rat', desc: 'Am Turn hinten gelegen – der River hat die Hand gedreht.' },
+      hands: (p) => `Hand ${p.list}`,
+    },
     look: { green: 'Grün', red: 'Rot', blue: 'Blau', wood: 'Holz', marbleDark: 'Dunkler Marmor', marbleLight: 'Heller Marmor' },
     gadget: { cigar: 'Zigarre', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
     plate: {
@@ -289,6 +296,7 @@ const DICT = {
       newTournament: 'Neues Turnier – bitte Platz nehmen!',
       topple: (p) => `💥 ${p.by ?? 'Ein Zuschauer'} hat die Chips von ${p.name} umgeworfen!`,
       tidy: (p) => `${p.name} stapelt die Chips wieder ordentlich auf.`,
+      trophy: (p) => `🏆 ${p.name} bekommt die Trophäe „${t(`trophy.${p.kind}.name`)}“!`,
       lateJoin: (p) => `${p.name} steigt nachträglich auf Platz ${p.seat + 1} ein (${fmt(p.stack)} Chips).`,
       chat: (p) => `${p.name ?? 'Zuschauer'}: ${p.text}`,
     },
@@ -415,6 +423,13 @@ const DICT = {
       go: (p) => `Take seat ${p.n}`,
       cancel: 'Cancel',
     },
+    trophy: {
+      sevenDeuce: { name: 'Seven-Deuce', desc: 'Won a showdown with 7-2 – the worst starting hand in poker.' },
+      tequila: { name: 'Tequila Survivor', desc: 'Went all-in with the whole stack and survived.' },
+      crackedAces: { name: 'Cracked Aces', desc: 'Lost a showdown holding pocket aces.' },
+      riverRat: { name: 'River Rat', desc: 'Behind on the turn – the river turned the hand around.' },
+      hands: (p) => `hand ${p.list}`,
+    },
     look: { green: 'Green', red: 'Red', blue: 'Blue', wood: 'Wood', marbleDark: 'Dark marble', marbleLight: 'Light marble' },
     gadget: { cigar: 'Cigar', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
     plate: {
@@ -489,6 +504,7 @@ const DICT = {
       newTournament: 'New tournament – take your seats!',
       topple: (p) => `💥 ${p.by ?? 'A spectator'} knocked over ${p.name}'s chips!`,
       tidy: (p) => `${p.name} stacks the chips back up.`,
+      trophy: (p) => `🏆 ${p.name} earns the “${t(`trophy.${p.kind}.name`)}” trophy!`,
       lateJoin: (p) => `${p.name} joins late in seat ${p.seat + 1} (${fmt(p.stack)} chips).`,
       chat: (p) => `${p.name ?? 'Spectator'}: ${p.text}`,
     },
