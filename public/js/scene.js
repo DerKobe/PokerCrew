@@ -237,6 +237,14 @@ export class Stage {
     s.add(rim);
   }
 
+  // Several features want a mouse cursor over their objects (chips, gadgets); each sets its own
+  // wish and the first non-empty one wins, so they never clear each other's cursor
+  setCursor(source, value) {
+    this.cursors ??= {};
+    this.cursors[source] = value;
+    this.renderer.domElement.style.cursor = Object.values(this.cursors).find(Boolean) || '';
+  }
+
   // Table look from the tournament config: name + colour on the felt, material of the rim
   setLook({ title, felt, rim }) {
     if ((title && title !== this.feltTitle) || (felt && felt !== this.feltColor)) {

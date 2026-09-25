@@ -282,3 +282,33 @@ test('Table look (name, felt, rim): editable by everyone in the lobby, sanitized
   assert.equal(s.config.felt, 'red');
   assert.ok(spec.received.some(([ev, d]) => ev === 'toast' && d.key === 'err.configLocked'));
 });
+
+test('Topple: knock over another stack, only the owner tidies it up', () => {
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
+  const [a, b, spec] = [0, 1, 2].map((i) => new FakeSocket(`k${i}`, `token-topple-${i}`));
+  for (const so of [a, b, spec]) s.connect(so);
+  a.send('sit', { seat: 0, name: 'A' });
+  b.send('sit', { seat: 1, name: 'B' });
+  a.send('topple', { seat: 0 });
+  assert.equal(s.toppled[0], undefined, 'not your own stack');
+  a.send('topple', { seat: 3 });
+  assert.equal(s.toppled[3], undefined, 'empty seat');
+  a.send('topple', { seat: 1 });
+  assert.ok(b.lastState.toppled[1].seed > 0);
+  assert.equal(b.lastState.toppled[1].by, 'A');
+  assert.ok(s.log.some((e) => e.key === 'topple' && e.p.by === 'A' && e.p.name === 'B'));
+  const seed = s.toppled[1].seed;
+  spec.send('topple', { seat: 1 });
+  assert.equal(s.toppled[1].seed, seed, 'already a mess');
+  a.send('tidy');
+  assert.equal(s.toppled[1].seed, seed, 'only the owner can tidy up');
+  b.send('tidy');
+  assert.equal(s.toppled[1], undefined);
+  assert.ok(s.log.some((e) => e.key === 'tidy' && e.p.name === 'B'));
+  // spectators may play the joke as well; standing up clears the mess
+  spec.send('topple', { seat: 0 });
+  assert.equal(s.toppled[0].by, null);
+  a.send('stand');
+  assert.equal(s.toppled[0], undefined);
+  s.close();
+});

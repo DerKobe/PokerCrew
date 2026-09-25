@@ -838,8 +838,7 @@ export class Gadgets {
       const now = performance.now();
       if (e.buttons || now - this.lastHover < 60) return;
       this.lastHover = now;
-      const want = this.#pick(e) ? 'pointer' : '';
-      if (want || el.style.cursor === 'pointer') el.style.cursor = want;
+      this.stage.setCursor('gadget', this.#pick(e) ? 'pointer' : '');
     });
     socket.on('gadget', (d) => {
       if (document.hidden || d?.seat === this.mySeat) return;
