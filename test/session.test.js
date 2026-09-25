@@ -253,22 +253,32 @@ test('Late registration: free seat while nobody has busted, dealt in from the ne
   s.close();
 });
 
-test('Tournament name: editable by everyone in the lobby, sanitized, locked while running', () => {
+test('Table look (name, felt, rim): editable by everyone in the lobby, sanitized, locked while running', () => {
   const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
   const [a, b, spec] = [0, 1, 2].map((i) => new FakeSocket(`t${i}`, `token-title-${i}`));
   for (const so of [a, b, spec]) s.connect(so);
   assert.equal(spec.lastState.config.title, 'PokerCrew');
-  spec.send('title', '  Friday   Night\tPoker  ');
+  spec.send('table', { title: '  Friday   Night\tPoker  ' });
   assert.equal(a.lastState.config.title, 'Friday Night Poker');
-  spec.send('title', 'x'.repeat(60));
+  spec.send('table', { title: 'x'.repeat(60) });
   assert.equal(s.config.title.length, 28);
-  spec.send('title', '   ');
+  spec.send('table', { title: '   ' });
   assert.equal(s.config.title, 'PokerCrew', 'empty falls back to the default');
+  assert.equal(s.config.felt, 'green');
+  assert.equal(s.config.rim, 'wood');
+  spec.send('table', { felt: 'red', rim: 'marbleDark' });
+  assert.equal(a.lastState.config.felt, 'red');
+  assert.equal(a.lastState.config.rim, 'marbleDark');
+  spec.send('table', { felt: 'purple', rim: 'gold', startingStack: 5 });
+  assert.equal(s.config.felt, 'red', 'unknown values are ignored');
+  assert.equal(s.config.rim, 'marbleDark');
+  assert.equal(s.config.startingStack, 10000, 'the table event cannot touch the structure');
   a.send('sit', { seat: 0, name: 'A' });
   b.send('sit', { seat: 1, name: 'B' });
   a.send('start');
-  spec.send('title', 'Too late');
+  spec.send('table', { title: 'Too late', felt: 'blue' });
   s.close();
   assert.equal(s.config.title, 'PokerCrew');
+  assert.equal(s.config.felt, 'red');
   assert.ok(spec.received.some(([ev, d]) => ev === 'toast' && d.key === 'err.configLocked'));
 });

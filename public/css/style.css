@@ -489,6 +489,22 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .seat em { font-size: 11px; color: var(--red); }
 .struct { border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 18px; }
 .title-row label { flex: 1; }
+.look-row { flex-wrap: wrap; gap: 16px; }
+.look { display: grid; gap: 6px; }
+.look .lbl { font-size: 12px; color: var(--muted); font-weight: 600; }
+.look-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.look-opts button {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px 6px 7px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); font-size: 12.5px; font-weight: 600;
+}
+.look-opts button.active { border-color: var(--gold); color: var(--gold); background: rgba(230, 196, 106, 0.1); }
+.sw { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
+.sw-green { background: radial-gradient(circle at 35% 35%, #1f8a5a, #0b4f31); }
+.sw-red { background: radial-gradient(circle at 35% 35%, #b02a36, #641118); }
+.sw-blue { background: radial-gradient(circle at 35% 35%, #2466a8, #0d355c); }
+.sw-wood { background: repeating-linear-gradient(100deg, #6b3219 0 3px, #4e220f 3px 5px, #7a3b1e 5px 8px); }
+.sw-marbleDark { background: linear-gradient(135deg, #1c1d20 40%, #d6ccba 46%, #1c1d20 52%, #2a2a2e 75%, #9d968a 78%, #1c1d20 81%); }
+.sw-marbleLight { background: linear-gradient(135deg, #ece9e3 40%, #7a7a80 45%, #ece9e3 50%, #d9d7d2 75%, #9a9aa0 78%, #ece9e3 81%); }
 .title-row input { font: italic 700 18px var(--serif); color: var(--gold); }
 .struct-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }

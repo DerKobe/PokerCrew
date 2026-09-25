@@ -145,7 +145,9 @@ function stadiumPath(ctx, cx, cy, a, r) {
 
 // The print is fixed to the table: in portrait it rotates with the table (like board and pot).
 // `title` is the tournament name printed between the board and your own seat.
-export function feltTexture(title = 'PokerCrew', color = '#0f6b43') {
+export const FELT_COLORS = { green: '#0f6b43', red: '#6c1219', blue: '#123f6e' };
+export function feltTexture(title = 'PokerCrew', felt = 'green') {
+  const color = FELT_COLORS[felt] || FELT_COLORS.green;
   const W = 2048;
   const H = Math.round((W * FELT_D) / FELT_W);
   const c = canvas(W, H);
@@ -287,6 +289,65 @@ export function woodTexture() {
   ctx.fillRect(0, 0, W, H);
   addNoise(ctx, W, H, 10, 9);
   return toTexture(c, { repeat: [0.12, 0.12] });
+}
+
+// Tileable value noise (lattice wraps with `period`), summed over octaves
+function tileNoise(seed, period) {
+  const r = rng(seed);
+  const grid = new Float32Array(period * period).map(() => r());
+  const at = (x, y) => grid[(((y % period) + period) % period) * period + (((x % period) + period) % period)];
+  const smooth = (t) => t * t * (3 - 2 * t);
+  return (u, v) => {
+    const x = u * period;
+    const y = v * period;
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const fx = smooth(x - x0);
+    const fy = smooth(y - y0);
+    const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * fx;
+    const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * fx;
+    return a + (b - a) * fy;
+  };
+}
+
+// Polished marble for the rim: 'dark' = black with pale veins, 'light' = white with grey veins.
+// Veins follow a sine pattern bent by fractal noise; both are periodic, so the texture tiles.
+const marbleCache = {};
+export function marbleTexture(kind) {
+  if (marbleCache[kind]) return marbleCache[kind];
+  const S = 512;
+  const c = canvas(S, S);
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(S, S);
+  const octaves = [4, 8, 16, 32, 64].map((p, i) => ({ n: tileNoise(101 + i * 17, p), w: 0.5 ** i }));
+  const fbm = (u, v) => octaves.reduce((sum, o) => sum + o.n(u, v) * o.w, 0) / 1.9375;
+  const dark = kind === 'dark';
+  const base = dark ? [24, 25, 28] : [233, 230, 224];
+  const cloud = dark ? [48, 46, 50] : [206, 204, 200];
+  const veinCol = dark ? [214, 204, 186] : [122, 122, 128];
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S;
+      const v = y / S;
+      const n = fbm(u, v);
+      const m = fbm(v + 0.37, u + 0.61); // second field: where veins are strong or fade out
+      // vein families at different angles and scales (integer coefficients keep it tileable)
+      const vein = (a, b, warp) => 1 - Math.abs(Math.sin(Math.PI * 2 * (a * u + b * v) + n * warp));
+      const fine = vein(3, 1, 11) ** 18 * (0.35 + m * 0.9) + vein(1, -4, 14) ** 30 * 0.5 + vein(5, 3, 17) ** 40 * 0.35;
+      const broad = vein(2, 1, 8) ** 4 * 0.22 * m;
+      const k = Math.min(1, fine + broad);
+      const cl = Math.min(1, Math.max(0, (n - 0.3) * 1.5));
+      const i = (y * S + x) * 4;
+      for (let ch = 0; ch < 3; ch++) {
+        const bg = base[ch] + (cloud[ch] - base[ch]) * cl;
+        img.data[i + ch] = bg + (veinCol[ch] - bg) * k;
+      }
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  addNoise(ctx, S, S, 6, 5);
+  return (marbleCache[kind] = toTexture(c, { repeat: [0.13, 0.13] }));
 }
 
 export function leatherBumpTexture() {
