@@ -375,6 +375,11 @@ export class Hud {
 
   update(s) {
     const prev = this.state;
+    // Einmaliger Hinweis auf den Chip-Riffle, sobald man am Tisch sitzt
+    if (s.phase === 'running' && s.mySeat != null && !localStorage.getItem('pc.fidgetHint')) {
+      localStorage.setItem('pc.fidgetHint', '1');
+      setTimeout(() => this.toast('Tipp: Spiel mit deinen Chips – klick auf deinen Stack oder halt ihn gedrückt und zieh.'), 4000);
+    }
     this.state = s;
     this.stateAt = performance.now();
     document.body.dataset.phase = s.phase;

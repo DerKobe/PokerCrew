@@ -4,6 +4,7 @@ import { Hud } from './hud.js';
 import { Voice } from './voice.js';
 import { audioContext } from './sound.js';
 import { preloadCardArt } from './textures.js';
+import { ChipFidget } from './fidget.js';
 
 // Beitreten: Klick ist nötig, damit der Browser Audio abspielen und das Mikro freigeben darf.
 // Der Handler wird sofort registriert; der Rest wartet ggf. auf das Laden der Szene.
@@ -48,6 +49,7 @@ const socket = io({
 });
 const send = (ev, data) => socket.emit(ev, data);
 const hud = new Hud({ stage, view, send, voice: null });
+new ChipFidget({ stage, view, send, socket });
 let iceServers = null;
 let voice = null;
 

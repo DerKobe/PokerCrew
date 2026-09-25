@@ -387,7 +387,8 @@ export class Stage {
     this.timer.update();
     const t = this.timer.getElapsed();
     updateTweens();
-    this.smoothMouse.lerp(this.mouse, 0.04);
+    // Beim Chip-Riffle soll die Kamera nicht mit der Maus mitschwenken
+    if (!this.freezeParallax) this.smoothMouse.lerp(this.mouse, 0.04);
     // Kamera: leicht geneigte Draufsicht, dezenter Parallax, im Leerlauf sanftes Schweben
     const elev = this.elevation;
     const d = this.baseDist;

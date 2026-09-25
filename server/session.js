@@ -78,6 +78,7 @@ export class Session {
     on('abort', () => this.abort(token));
     on('newTournament', () => this.newTournament(token));
     on('chat', (text) => this.chat(token, text));
+    on('fidget', (d) => this.fidget(socket, token, d));
     on('voice-join', (d) => this.voiceJoin(socket, d));
     on('voice-signal', (d) => this.voiceSignal(socket, d));
     on('voice-mute', (d) => this.voiceMute(socket, d));
@@ -421,6 +422,27 @@ export class Session {
   #addLog(text, kind = 'info') {
     this.log.push({ t: Date.now(), text, kind, id: (this.logId = (this.logId || 0) + 1) });
     if (this.log.length > 80) this.log.shift();
+  }
+
+  // ---------- Chip-Riffle (rein kosmetisch, nur weiterreichen) ----------
+
+  fidget(socket, token, d) {
+    const seat = this.seatOfToken(token);
+    if (seat == null || !d || !['start', 'progress', 'auto', 'sort'].includes(d.type)) return;
+    // einfache Drosselung gegen Flut
+    const c = this.clients.get(socket.id);
+    const now = Date.now();
+    if (!c.fidget || now - c.fidget.t > 1000) c.fidget = { t: now, n: 0 };
+    if (++c.fidget.n > 40) return;
+    const num = (v, min, max) => Math.min(max, Math.max(min, Number(v) || 0));
+    socket.broadcast.emit('fidget', {
+      seat,
+      type: d.type,
+      pile: Math.round(num(d.pile, 0, 100)),
+      seed: Math.round(num(d.seed, 0, 2 ** 31)),
+      p: num(d.p, 0, 1),
+      dur: num(d.dur, 0.1, 3),
+    });
   }
 
   // ---------- Voice-Signaling (WebRTC Mesh) ----------

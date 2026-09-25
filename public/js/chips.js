@@ -84,18 +84,26 @@ export function buildStack(amount, { seed = 1, layout = 'row', perRow = 5, maxCh
   const spacing = CHIP_R * 2.12;
   const positions = columnPositions(columns.length, spacing, layout, perRow);
   const g = chipGeometry();
+  // Säulen (Piles) merken – der Chip-Riffle arbeitet darauf (siehe fidget.js)
+  const piles = [];
   columns.forEach((col, ci) => {
     const [px, pz] = positions[ci];
     const m = chipMaterials(col.d);
+    const pile = { x: px, z: pz, chips: [], mixed: false };
     for (let i = 0; i < col.h; i++) {
       const chip = new THREE.Mesh(g, m);
       chip.position.set(px + (r() - 0.5) * 0.025, CHIP_H / 2 + i * CHIP_H, pz + (r() - 0.5) * 0.025);
       chip.rotation.y = r() * Math.PI * 2;
       chip.castShadow = true;
       chip.receiveShadow = true;
+      chip.userData.pile = ci;
+      pile.chips.push(chip);
       group.add(chip);
     }
+    piles.push(pile);
   });
+  group.userData.piles = piles;
+  group.userData.build = { amount, opts: { seed, layout, perRow, maxChips, pretty } };
   return group;
 }
 

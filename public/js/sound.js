@@ -68,6 +68,13 @@ export const sfx = {
       noise(t, 0.03, { freq: 1600, q: 2, gain: 0.12 });
     }
   },
+  // Einzelner Chip, der beim Riffeln auf den anderen fällt
+  tick(vol = 1) {
+    if (!this.enabled || !ensure()) return;
+    const t = ctx.currentTime;
+    noise(t, 0.02 + Math.random() * 0.014, { freq: 3600 + Math.random() * 2800, q: 6, gain: 0.3 * vol });
+    noise(t, 0.012, { type: 'highpass', freq: 6500, q: 0.7, gain: 0.07 * vol });
+  },
   card() {
     if (!this.ok) return;
     noise(ctx.currentTime, 0.13, { type: 'highpass', freq: 2500, sweepTo: 7000, q: 0.6, gain: 0.22, attack: 0.02 });
