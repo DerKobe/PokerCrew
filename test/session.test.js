@@ -312,3 +312,35 @@ test('Topple: knock over another stack, only the owner tidies it up', () => {
   assert.equal(s.toppled[0], undefined);
   s.close();
 });
+
+test('Bots: fill empty seats at the start and play a tournament to the end', async () => {
+  const s = new Session(fakeIo, {
+    delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, botMin: 1, botMax: 2, botFast: 1, botTidy: 1 },
+  });
+  s.config.startingStack = 600;
+  s.config.levels = [{ sb: 50, bb: 100, ante: 0 }];
+  const human = new FakeSocket('h', 'token-human-1');
+  s.connect(human);
+  human.send('sit', { seat: 2, name: 'Human' });
+  human.send('start');
+  assert.equal(s.phase, 'lobby', 'without bots one player is not enough');
+  human.send('config', { bots: true });
+  human.send('start');
+  assert.equal(s.phase, 'running');
+  const bots = s.seats.filter((x) => x?.bot);
+  assert.equal(bots.length, 4, 'all other seats are bots');
+  assert.equal(new Set(s.seats.filter(Boolean).map((x) => x.name)).size, 5);
+  assert.ok(human.lastState.seats.some((x) => x?.bot), 'profiles are visible to clients');
+  assert.ok(s.log.some((e) => e.key === 'botsJoin' && e.p.names.length === 4));
+  s.config.actionSeconds = 0.005; // the human times out and auto-folds
+  // knock over a bot's stack: it tidies up by itself
+  const botSeat = s.seats.findIndex((x) => x?.bot);
+  human.send('topple', { seat: botSeat });
+  assert.ok(s.toppled[botSeat]);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(s.toppled[botSeat], undefined, 'the bot stacked its chips again');
+  for (let i = 0; i < 400 && s.phase === 'running'; i++) await new Promise((r) => setTimeout(r, 10));
+  s.close();
+  assert.equal(s.phase, 'finished');
+  assert.equal(s.results.length, 5);
+});

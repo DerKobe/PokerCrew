@@ -290,6 +290,7 @@ export class Hud {
           ).join('')}</div>
         </div>
         <div class="seatgrid"></div>
+        <label class="bots-row"><input type="checkbox" id="in-bots"> <span>🤖 ${t('lobby.bots')}</span> <em>${t('lobby.botsHint')}</em></label>
         <div class="gadget-row">
           <span class="lbl">${t('lobby.gadget')} <em>${t('lobby.gadgetHint')}</em></span>
           <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${t(`gadget.${g.id}`)}</span></button>`).join('')}</div>
@@ -396,6 +397,7 @@ export class Hud {
     });
     titleIn.addEventListener('change', sendTitle);
     $('#btn-start').onclick = () => this.send('start');
+    $('#in-bots').onchange = (e) => this.send('config', { bots: e.target.checked });
     // Seat count: a direct choice (not +/-), so two people picking the same number do not fight;
     // open to everyone in the lobby, also before taking a seat
     el.querySelectorAll('.seat-count button').forEach((b) => {
@@ -556,7 +558,7 @@ export class Hud {
           return `<div class="seat taken ${mine ? 'mine' : ''} ${seat.connected ? '' : 'offline'}"><span class="no">${i + 1}</span><span class="sn">${esc(seat.name)}${gadgetIcon(seat.gadget)}</span>${
             mine ? `<button class="ghost small" data-stand>${t('lobby.standUp')}</button>` : seat.connected ? '' : `<em>${t('lobby.offline')}</em>`
           }</div>`;
-        return `<button class="seat free" data-seat="${i}"><span class="no">${i + 1}</span><span class="sn">${t('lobby.free')}</span><span class="cta">${t(s.mySeat != null ? 'lobby.switch' : 'lobby.sit')}</span></button>`;
+        return `<button class="seat free" data-seat="${i}"><span class="no">${i + 1}</span><span class="sn">${s.config.bots ? `🤖 ${t('lobby.botSeat')}` : t('lobby.free')}</span><span class="cta">${t(s.mySeat != null ? 'lobby.switch' : 'lobby.sit')}</span></button>`;
       })
       .join('');
     el.querySelectorAll('[data-seat]').forEach((b) => (b.onclick = () => this.#sitAt(Number(b.dataset.seat))));
@@ -610,13 +612,20 @@ export class Hud {
       `<div>${t('lobby.sum2', { levels: c.levels.length, sb1: first.sb, bb1: first.bb, sb2: last.sb, bb2: last.bb })}</div>`;
     $('#btn-addlvl').disabled = !canEdit;
     $('#btn-reset').disabled = !canEdit;
-    const n = Math.max(2, seated);
+    const n = Math.max(2, c.bots ? count : seated);
     const est = estimateMinutes(c, n);
     const bbs = Math.round(c.startingStack / c.levels[0].bb);
     $('.estimate', el).innerHTML = t('lobby.estimate', { n, min: est, bbs });
-    $('.who', el).textContent = seated < 2 ? t('lobby.needMore', { n: seated, max: count }) : t('lobby.ready', { n: seated, spec: s.spectators });
+    const bots = c.bots ? count - seated : 0;
+    const botsIn = $('#in-bots');
+    botsIn.checked = !!c.bots;
+    botsIn.disabled = !canEdit;
+    $('.who', el).textContent =
+      seated + bots < 2 || seated < 1
+        ? t('lobby.needMore', { n: seated, max: count })
+        : t('lobby.ready', { n: seated, spec: s.spectators }) + (bots ? ` · ${t('lobby.plusBots', { n: bots })}` : '');
     const startBtn = $('#btn-start');
-    startBtn.disabled = !(canEdit && seated >= 2);
+    startBtn.disabled = !(canEdit && seated + bots >= 2);
   }
 
   // ------------------------------------------------------------ Update
@@ -708,6 +717,7 @@ export class Hud {
         if (h.sbSeat === p.seat) tags.push('<b>SB</b>');
         if (h.bbSeat === p.seat) tags.push('<b>BB</b>');
       }
+      if (seat.bot) tags.push(`<b class="t-bot" title="${esc(t(`profile.${seat.bot}.desc`))}">🤖 ${esc(t(`profile.${seat.bot}.name`))}</b>`);
       if (seat.away) tags.push(`<b class="t-away">${t('plate.away')}</b>`);
       if (!seat.connected) tags.push(`<b class="t-away">${t('plate.offline')}</b>`);
       $('.tag', el).innerHTML = tags.join('');
