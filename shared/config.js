@@ -39,6 +39,7 @@ export function defaultConfig() {
     title: DEFAULT_TITLE,
     felt: FELTS[0],
     rim: RIMS[0],
+    bots: false, // fill empty seats with bot players when the tournament starts
     seats: DEFAULT_SEATS,
     startingStack: 10000,
     levelMinutes: 10,
@@ -57,6 +58,7 @@ export function sanitizeConfig(input, base = defaultConfig()) {
   const c = { ...base, levels: base.levels.map((l) => ({ ...l })) };
   if (!input || typeof input !== 'object') return c;
   if ('title' in input) c.title = String(input.title ?? '').replace(/\s+/g, ' ').trim().slice(0, TITLE_MAX) || DEFAULT_TITLE;
+  if ('bots' in input) c.bots = !!input.bots;
   if (FELTS.includes(input.felt)) c.felt = input.felt;
   if (RIMS.includes(input.rim)) c.rim = input.rim;
   if ('seats' in input) c.seats = int(input.seats, MIN_SEATS, MAX_SEATS, c.seats);

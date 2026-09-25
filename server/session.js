@@ -5,6 +5,7 @@ import { MAX_SEATS, defaultConfig, sanitizeConfig, levelAt } from '../shared/con
 import { isGadget } from '../shared/gadgets.js';
 import { UserError } from './errors.js';
 import { trophiesFor } from './trophies.js';
+import { pickBots, decide } from './bots.js';
 
 const DELAY = {
   street: 900, // pause before the next street is dealt
@@ -18,7 +19,13 @@ const DELAY = {
   away: 1200, // away players act automatically
   disconnected: 12000,
   lobbyLeave: 90_000, // free a lobby seat after a disconnect
+  botMin: 900, // bots "think" this long (random between min and max) ...
+  botMax: 2600,
+  botFast: 350, // ... or only this long once no human is left in the hand
+  botTidy: 4000, // a bot tidies its knocked-over stack after about this long
 };
+
+const between = (a, b) => a + Math.random() * (b - a);
 
 export class Session {
   constructor(io, { log = console.log, delays = {} } = {}) {
@@ -253,6 +260,7 @@ export class Session {
   start(token) {
     if (this.phase !== 'lobby') return;
     this.#requireSeat(token);
+    if (this.config.bots) this.#fillWithBots();
     const seated = this.seats.map((s, i) => (s ? i : -1)).filter((i) => i >= 0);
     if (seated.length < 2) throw new UserError('needTwo');
     for (const i of seated) {
@@ -270,6 +278,32 @@ export class Session {
     const l = levelAt(this.config, 0);
     this.#addLog('started', { n: seated.length, stack: this.config.startingStack, sb: l.sb, bb: l.bb }, 'system');
     this.#startHand(true);
+  }
+
+  // Empty seats get bot players from the roster (random names + playing styles)
+  #fillWithBots() {
+    const free = this.seats.slice(0, this.config.seats).map((s, i) => (s ? -1 : i)).filter((i) => i >= 0);
+    const bots = pickBots(free.length, this.seats.filter(Boolean).map((s) => s.name));
+    const gadgets = ['cigar', 'vape', 'cocktail', 'whiskey'];
+    bots.forEach((b, k) => {
+      this.seats[free[k]] = {
+        token: `bot:${free[k]}:${b.name}`,
+        name: b.name,
+        bot: b.profile,
+        gadget: gadgets[randomInt(gadgets.length)],
+        stack: 0,
+        connected: true,
+        away: false,
+        eliminated: false,
+        place: null,
+        trophies: [],
+      };
+    });
+    if (bots.length) this.#addLog('botsJoin', { names: bots.map((b) => b.name) }, 'system');
+  }
+
+  #humansInHand(h) {
+    return h.players.some((p) => !p.folded && !this.seats[p.seat].bot);
   }
 
   // ---------- Tournament ----------
@@ -360,7 +394,10 @@ export class Session {
         // All-in runout with cards face up: next street only on click (or after a timeout)
         const next = h.board.length === 0 ? 'flop' : h.board.length === 3 ? 'turn' : 'river';
         this.pendingReveal = { handId: h.handId, next, until: Date.now() + this.delay.revealTimeout };
-        this.#step(this.delay.revealTimeout, () => this.#revealNext(null));
+        // only bots left in the hand: one of them turns the cards without waiting for a click
+        const botOnly = !this.#humansInHand(h);
+        const revealer = botOnly ? h.players.find((p) => !p.folded)?.seat : null;
+        this.#step(botOnly ? between(this.delay.botMin, this.delay.botMax) : this.delay.revealTimeout, () => this.#revealNext(revealer));
       } else {
         const d = h.runout ? (h.dramaticRiver ? this.delay.dramatic : this.delay.runout) : this.delay.street;
         this.#step(d, () => this.#advanceHand());
@@ -416,6 +453,7 @@ export class Session {
     if (!h || h.phase !== 'betting') return;
     const seat = h.toAct;
     const s = this.seats[seat];
+    if (s.bot) return this.#botTurn(h, seat, s);
     let ms = this.config.actionSeconds * 1000;
     if (s.away) ms = this.delay.away;
     else if (!s.connected) ms = Math.min(ms, this.delay.disconnected);
@@ -428,6 +466,23 @@ export class Session {
         this.#addLog('away', { name: s.name }, 'system');
       }
       this.#doAction(seat, legal.canCheck ? 'check' : 'fold');
+    }), ms);
+  }
+
+  // A bot thinks a moment and acts; if its choice is not allowed it falls back to check/fold
+  #botTurn(h, seat, s) {
+    const ms = this.#humansInHand(h) ? between(this.delay.botMin, this.delay.botMax) : this.delay.botFast;
+    this.actionDeadline = Date.now() + ms;
+    this.actionTimer = setTimeout(() => this.#safe(() => {
+      if (this.hand !== h || h.toAct !== seat || h.phase !== 'betting') return;
+      let move;
+      try {
+        move = decide(h, seat, s.bot);
+        this.#doAction(seat, move.type, move.amount);
+      } catch {
+        const legal = h.legalActions(seat);
+        this.#doAction(seat, legal.canCheck ? 'check' : 'fold');
+      }
     }), ms);
   }
 
@@ -597,6 +652,13 @@ export class Session {
     this.toppled[seat] = { seed: randomInt(1, 2 ** 31), by };
     this.#addLog('topple', { by, name: target.name }, 'system');
     this.broadcast();
+    if (target.bot) {
+      const t = setTimeout(() => this.#safe(() => {
+        if (this.seats[seat] !== target || !this.toppled[seat]) return;
+        this.tidy(target.token);
+      }), this.delay.botTidy * (0.8 + Math.random() * 0.6));
+      t.unref?.();
+    }
   }
 
   tidy(token) {
@@ -669,6 +731,7 @@ export class Session {
               name: s.name,
               gadget: s.gadget || null,
               trophies: s.trophies || [],
+              bot: s.bot || null,
               stack: hv?.players[i] ? hv.players[i].stack : s.stack,
               connected: s.connected,
               away: s.away,
