@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
   TABLE, FELT_W, FELT_D, BOARD_Z, feltTexture, feltBumpTexture, woodTexture, leatherBumpTexture,
-  carpetTexture, dealerButtonTexture, setMaxAnisotropy,
+  carpetTexture, dealerButtonTexture, setMaxAnisotropy, marbleTexture,
 } from './textures.js';
 import { updateTweens, tween, ease } from './tween.js';
 import { MAX_SEATS } from '/shared/config.js';
@@ -187,6 +187,8 @@ export class Stage {
     this.smoothMouse = new THREE.Vector2();
     this.idle = true;
     this.feltTitle = 'PokerCrew';
+    this.feltColor = 'green';
+    this.rim = 'wood';
     this.fixed = false;
     this.motionK = 1;
 
@@ -235,13 +237,31 @@ export class Stage {
     s.add(rim);
   }
 
-  // Redraw the felt print when the tournament name changes
-  setTitle(title) {
-    if (!title || title === this.feltTitle) return;
-    this.feltTitle = title;
-    const old = this.feltMat.map;
-    this.feltMat.map = feltTexture(title);
-    old.dispose();
+  // Table look from the tournament config: name + colour on the felt, material of the rim
+  setLook({ title, felt, rim }) {
+    if ((title && title !== this.feltTitle) || (felt && felt !== this.feltColor)) {
+      this.feltTitle = title || this.feltTitle;
+      this.feltColor = felt || this.feltColor;
+      const old = this.feltMat.map;
+      this.feltMat.map = feltTexture(this.feltTitle, this.feltColor);
+      old.dispose();
+    }
+    if (rim && rim !== this.rim) {
+      this.rim = rim;
+      const m = this.rimMat;
+      if (rim === 'wood') {
+        m.map = this.woodTex;
+        m.roughness = 0.32;
+        m.clearcoatRoughness = 0.12;
+        m.envMapIntensity = 1.1;
+      } else {
+        // polished stone: smoother and more reflective than lacquered wood
+        m.map = marbleTexture(rim === 'marbleDark' ? 'dark' : 'light');
+        m.roughness = 0.18;
+        m.clearcoatRoughness = 0.04;
+        m.envMapIntensity = rim === 'marbleDark' ? 1.5 : 0.9;
+      }
+    }
   }
 
   #table() {
@@ -256,7 +276,7 @@ export class Stage {
     for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + FELT_W / 2) / FELT_W, (pos.getY(i) + FELT_D / 2) / FELT_D);
     feltGeo.rotateX(-Math.PI / 2);
     this.feltMat = new THREE.MeshStandardMaterial({
-      map: feltTexture(this.feltTitle),
+      map: feltTexture(this.feltTitle, this.feltColor),
       bumpMap: feltBumpTexture(),
       bumpScale: 0.6,
       roughness: 0.96,
@@ -267,8 +287,9 @@ export class Stage {
     felt.receiveShadow = true;
     g.add(felt);
 
-    // Wooden racetrack
+    // Rim around the felt (racetrack): wood by default, marble selectable in the lobby
     const wood = woodTexture();
+    this.woodTex = wood;
     const woodMat = new THREE.MeshPhysicalMaterial({
       map: wood,
       roughness: 0.32,
@@ -285,6 +306,7 @@ export class Stage {
       curveSegments: 64,
     });
     raceGeo.rotateX(-Math.PI / 2);
+    this.rimMat = woodMat;
     const raceM = new THREE.Mesh(raceGeo, woodMat);
     raceM.position.y = -0.02;
     raceM.receiveShadow = true;

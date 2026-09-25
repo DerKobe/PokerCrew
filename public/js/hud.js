@@ -1,7 +1,7 @@
 // HTML interface on top of the 3D scene.
 import * as THREE from 'three';
 import { MAX_SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
-import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX } from '/shared/config.js';
+import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX, FELTS, RIMS } from '/shared/config.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { GADGETS, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
@@ -298,14 +298,24 @@ export class Hud {
           <div class="struct-head">
             <h2>${t('lobby.struct')}</h2>
           </div>
-          <div class="row title-row">
-            <label>${t('lobby.tournamentName')}<input id="in-title" maxlength="${TITLE_MAX}" placeholder="${DEFAULT_TITLE}" autocomplete="off"></label>
-          </div>
           <div class="row struct-summary">
             <div class="struct-sum"></div>
             <button class="ghost" id="btn-struct" aria-expanded="false"></button>
           </div>
           <div class="struct-editor hidden">
+            <h3>${t('lobby.table')}</h3>
+            <div class="row title-row">
+              <label>${t('lobby.tournamentName')}<input id="in-title" maxlength="${TITLE_MAX}" placeholder="${DEFAULT_TITLE}" autocomplete="off"></label>
+            </div>
+            <div class="row look-row">
+              <div class="look"><span class="lbl">${t('lobby.felt')}</span><div class="look-opts" data-k="felt">${FELTS.map(
+                (f) => `<button type="button" data-v="${f}"><i class="sw sw-${f}"></i>${t(`look.${f}`)}</button>`,
+              ).join('')}</div></div>
+              <div class="look"><span class="lbl">${t('lobby.rim')}</span><div class="look-opts" data-k="rim">${RIMS.map(
+                (r) => `<button type="button" data-v="${r}"><i class="sw sw-${r}"></i>${t(`look.${r}`)}</button>`,
+              ).join('')}</div></div>
+            </div>
+            <h3>${t('lobby.game')}</h3>
             <div class="presets"></div>
             <div class="row three">
               <label>${t('lobby.stack')}<input id="in-stack" type="number" min="100" step="100"></label>
@@ -370,12 +380,16 @@ export class Hud {
       const { startingStack, levelMinutes, actionSeconds, levels } = defaultConfig();
       this.send('config', { startingStack, levelMinutes, actionSeconds, levels });
     };
-    // Tournament name: anyone in the lobby may edit it; sent while typing (debounced)
+    // The table (name, felt, rim): anyone in the lobby may change it; the name is sent while
+    // typing (debounced)
     const titleIn = $('#in-title');
     const sendTitle = () => {
       clearTimeout(this.titleT);
-      this.send('title', titleIn.value);
+      this.send('table', { title: titleIn.value });
     };
+    el.querySelectorAll('.look-opts button').forEach((b) => {
+      b.onclick = () => this.send('table', { [b.parentElement.dataset.k]: b.dataset.v });
+    });
     titleIn.addEventListener('input', () => {
       clearTimeout(this.titleT);
       this.titleT = setTimeout(sendTitle, 400);
@@ -561,6 +575,7 @@ export class Hud {
     };
     const titleIn = $('#in-title');
     if (document.activeElement !== titleIn) titleIn.value = c.title;
+    el.querySelectorAll('.look-opts button').forEach((b) => b.classList.toggle('active', c[b.parentElement.dataset.k] === b.dataset.v));
     setVal('#in-stack', c.startingStack);
     setVal('#in-level', c.levelMinutes);
     setVal('#in-action', c.actionSeconds);
@@ -590,6 +605,7 @@ export class Hud {
     const last = c.levels[c.levels.length - 1];
     const preset = PRESETS.find((p) => p.levelMinutes === c.levelMinutes);
     $('.struct-sum', el).innerHTML =
+      `<div>${t('lobby.sum0', { title: esc(c.title), felt: t(`look.${c.felt}`), rim: t(`look.${c.rim}`) })}</div>` +
       `<div>${t('lobby.sum1', { stack: c.startingStack, min: c.levelMinutes, sec: c.actionSeconds, preset: preset && t(`preset.${preset.id}`) })}</div>` +
       `<div>${t('lobby.sum2', { levels: c.levels.length, sb1: first.sb, bb1: first.bb, sb2: last.sb, bb2: last.bb })}</div>`;
     $('#btn-addlvl').disabled = !canEdit;

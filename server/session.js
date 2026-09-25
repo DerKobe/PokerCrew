@@ -82,7 +82,7 @@ export class Session {
     on('stand', () => this.stand(token));
     on('config', (d) => this.setConfig(token, d));
     on('seats', (n) => this.setSeats(n));
-    on('title', (text) => this.setTitle(text));
+    on('table', (d) => this.setTable(d));
     on('start', () => this.start(token));
     on('action', (d) => this.action(token, d?.type, d?.amount));
     on('back', () => this.setAway(token, false));
@@ -217,11 +217,15 @@ export class Session {
     this.broadcast();
   }
 
-  // The tournament name (printed on the felt) is open to everyone in the lobby as well
-  setTitle(text) {
+  // The table itself (tournament name printed on the felt, felt colour, rim material) is
+  // open to everyone in the lobby as well
+  setTable(d) {
     if (this.phase !== 'lobby') throw new UserError('configLocked');
-    const next = sanitizeConfig({ title: text }, this.config);
-    if (next.title === this.config.title) return;
+    if (!d || typeof d !== 'object') return;
+    const pick = {};
+    for (const k of ['title', 'felt', 'rim']) if (k in d) pick[k] = d[k];
+    const next = sanitizeConfig(pick, this.config);
+    if (next.title === this.config.title && next.felt === this.config.felt && next.rim === this.config.rim) return;
     this.config = next;
     this.broadcast();
   }
