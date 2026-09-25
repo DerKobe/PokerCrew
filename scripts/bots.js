@@ -10,7 +10,7 @@ const url = args.find((a) => a.startsWith('http')) || 'http://localhost:3000';
 const autoStart = args.includes('--start');
 const shove = args.includes('--shove');
 const fun = args.includes('--fun');
-const NAMES = ['Botty', 'Chipper', 'River Rat', 'Tilt', 'Nuts'];
+const NAMES = ['Botty', 'Chipper', 'River Rat', 'Tilt', 'Nuts', 'Shark', 'Donk', 'Rock', 'Maniac', 'Fish'];
 const GADGETS = ['cigar', 'vape', 'cocktail', 'whiskey'];
 
 for (let i = 0; i < count; i++) {

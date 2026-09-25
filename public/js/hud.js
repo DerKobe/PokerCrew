@@ -1,6 +1,7 @@
 // HTML interface on top of the 3D scene.
 import * as THREE from 'three';
-import { SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
+import { MAX_SEATS, POT_POS, BOARD_POS, tableToWorld, isPortrait } from './scene.js';
+import { MIN_SEATS } from '/shared/config.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { GADGETS, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
@@ -100,7 +101,7 @@ export class Hud {
     // Nameplates
     const plates = $('#plates');
     this.plates = [];
-    for (let i = 0; i < SEATS; i++) {
+    for (let i = 0; i < MAX_SEATS; i++) {
       const el = document.createElement('div');
       el.className = 'plate empty';
       el.innerHTML = `
@@ -109,7 +110,7 @@ export class Hud {
         <div class="tag"></div>
         <div class="act"></div>
         <button class="sit">${esc(t('plate.sit', { n: i + 1 }))}</button>`;
-      el.querySelector('.sit').addEventListener('click', () => this.#sitAt(i));
+      el.querySelector('.sit').addEventListener('click', () => (this.state?.phase === 'running' ? this.#openJoin(i) : this.#sitAt(i)));
       el.querySelector('.avatar').addEventListener('click', () => {
         if (el.classList.contains('has-video')) el.classList.toggle('zoom');
       });
@@ -227,14 +228,16 @@ export class Hud {
     this.actions = $('#actions');
     window.addEventListener('keydown', (e) => this.#hotkeys(e));
 
-    // Lobby
+    // Lobby + late registration
     this.#buildLobby();
+    this.#buildJoin();
     applyStatic();
   }
 
   // Language switched: rebuild generated markup and re-render everything from the last state
   #relocalize() {
     this.#buildLobby();
+    this.#buildJoin();
     for (const p of this.plates) p.el.querySelector('.sit').textContent = t('plate.sit', { n: p.seat + 1 });
     this.actionKey = null;
     this.lastLog = 0;
@@ -255,6 +258,13 @@ export class Hud {
         <p class="sub">${t('lobby.sub')}</p>
         <div class="row name-row">
           <label>${t('lobby.name')}<input id="in-name" maxlength="16" placeholder="${esc(t('lobby.namePh'))}" autocomplete="nickname"></label>
+        </div>
+        <div class="seats-head">
+          <span class="lbl">${t('lobby.seats')}</span>
+          <div class="seat-count" role="radiogroup" aria-label="${esc(t('lobby.seats'))}">${Array.from(
+            { length: MAX_SEATS - MIN_SEATS + 1 },
+            (_, i) => `<button type="button" role="radio" data-n="${i + MIN_SEATS}">${i + MIN_SEATS}</button>`,
+          ).join('')}</div>
         </div>
         <div class="seatgrid"></div>
         <div class="gadget-row">
@@ -331,6 +341,11 @@ export class Hud {
     };
     $('#btn-reset').onclick = () => this.send('config', defaultConfig());
     $('#btn-start').onclick = () => this.send('start');
+    // Seat count: a direct choice (not +/-), so two people picking the same number do not fight;
+    // open to everyone in the lobby, also before taking a seat
+    el.querySelectorAll('.seat-count button').forEach((b) => {
+      b.onclick = () => this.send('seats', Number(b.dataset.n));
+    });
     // Tournament and blind structure are collapsed by default
     this.structOpen ??= false;
     $('#btn-struct').onclick = () => {
@@ -355,11 +370,105 @@ export class Hud {
     });
   }
 
-  #sitAt(seat) {
+  // ------------------------------------------------------------ Late registration
+
+  #buildJoin() {
+    let el = $('#join');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'join';
+      el.className = 'hidden';
+      document.body.appendChild(el);
+      const cta = document.createElement('button');
+      cta.id = 'join-cta';
+      cta.className = 'primary hidden';
+      cta.onclick = () => this.#openJoin(null);
+      document.body.appendChild(cta);
+    }
+    el.innerHTML = `
+      <div class="lobby-card join-card">
+        <h1>${t('join.title')}</h1>
+        <p class="sub join-sub"></p>
+        <div class="row name-row">
+          <label>${t('lobby.name')}<input id="join-name" maxlength="16" placeholder="${esc(t('lobby.namePh'))}" autocomplete="nickname"></label>
+        </div>
+        <div class="gadget-row">
+          <span class="lbl">${t('lobby.gadget')} <em>${t('lobby.gadgetHint')}</em></span>
+          <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${t(`gadget.${g.id}`)}</span></button>`).join('')}</div>
+        </div>
+        <div class="gadget-row">
+          <span class="lbl">${t('join.seat')}</span>
+          <div class="join-seats"></div>
+        </div>
+        <div class="lobby-foot">
+          <button class="ghost" id="join-cancel">${t('join.cancel')}</button>
+          <button class="primary" id="join-go"></button>
+        </div>
+      </div>`;
+    const nameIn = $('#join-name');
+    nameIn.value = this.name;
+    nameIn.addEventListener('input', () => {
+      this.name = nameIn.value;
+      localStorage.setItem('pc.name', this.name);
+      const lobbyName = $('#in-name');
+      if (lobbyName) lobbyName.value = this.name;
+    });
+    el.querySelectorAll('.gadget-opt').forEach((b) => {
+      b.onclick = () => {
+        this.gadget = b.dataset.g;
+        localStorage.setItem('pc.gadget', this.gadget);
+        if (this.state) this.#renderJoin(this.state);
+      };
+    });
+    $('#join-cancel').onclick = () => {
+      this.joinOpen = false;
+      if (this.state) this.#renderJoin(this.state);
+    };
+    $('#join-go').onclick = () => this.joinSeat != null && this.#sitAt(this.joinSeat, nameIn);
+    el.onclick = (e) => {
+      if (e.target === el) $('#join-cancel').click();
+    };
+  }
+
+  #openJoin(seat) {
+    this.joinOpen = true;
+    this.joinSeat = seat;
+    if (this.state) this.#renderJoin(this.state);
+    const inp = $('#join-name');
+    if (!inp.value.trim()) inp.focus();
+  }
+
+  #renderJoin(s) {
+    const open = !!s.lateReg && s.mySeat == null && s.phase === 'running';
+    const free = s.seats.map((x, i) => (x ? -1 : i)).filter((i) => i >= 0);
+    const cta = $('#join-cta');
+    cta.classList.toggle('hidden', !open || this.joinOpen);
+    if (open) cta.textContent = `🪑 ${t('join.cta', { free: free.length })}`;
+    if (!open) this.joinOpen = false;
+    const el = $('#join');
+    el.classList.toggle('hidden', !this.joinOpen);
+    if (!this.joinOpen) return;
+    if (!free.includes(this.joinSeat)) this.joinSeat = free[0] ?? null;
+    $('.join-sub', el).textContent = t('join.sub', { stack: s.config.startingStack });
+    $('.join-seats', el).innerHTML = free
+      .map((i) => `<button class="chip-btn ${i === this.joinSeat ? 'active' : ''}" data-seat="${i}">${i + 1}</button>`)
+      .join('');
+    el.querySelectorAll('.join-seats button').forEach((b) => {
+      b.onclick = () => {
+        this.joinSeat = Number(b.dataset.seat);
+        this.#renderJoin(this.state);
+      };
+    });
+    el.querySelectorAll('.gadget-opt').forEach((b) => b.classList.toggle('active', b.dataset.g === this.gadget));
+    const go = $('#join-go');
+    go.textContent = this.joinSeat != null ? t('join.go', { n: this.joinSeat + 1 }) : t('join.title');
+    go.disabled = this.joinSeat == null;
+  }
+
+  #sitAt(seat, nameInput = $('#in-name')) {
     const name = (this.name || '').trim();
     if (!name) {
-      $('#lobby').classList.remove('hidden');
-      $('#in-name').focus();
+      nameInput.focus();
       this.toast(t('lobby.nameFirst'), 'error');
       return;
     }
@@ -376,7 +485,15 @@ export class Hud {
     const canEdit = s.mySeat != null;
     el.classList.toggle('readonly', !canEdit);
 
-    // Seats
+    // Seats: count choice + grid (at most 5 per row, rows evenly filled)
+    const count = s.seats.length;
+    el.querySelectorAll('.seat-count button').forEach((b) => {
+      const n = Number(b.dataset.n);
+      b.classList.toggle('active', n === count);
+      b.setAttribute('aria-checked', String(n === count));
+      b.disabled = n < seated;
+    });
+    $('.seatgrid', el).style.setProperty('--cols', count <= 5 ? count : Math.ceil(count / 2));
     $('.seatgrid', el).innerHTML = s.seats
       .map((seat, i) => {
         const mine = s.mySeat === i;
@@ -438,7 +555,7 @@ export class Hud {
     const est = estimateMinutes(c, n);
     const bbs = Math.round(c.startingStack / c.levels[0].bb);
     $('.estimate', el).innerHTML = t('lobby.estimate', { n, min: est, bbs });
-    $('.who', el).textContent = seated < 2 ? t('lobby.needMore', { n: seated }) : t('lobby.ready', { n: seated, spec: s.spectators });
+    $('.who', el).textContent = seated < 2 ? t('lobby.needMore', { n: seated, max: count }) : t('lobby.ready', { n: seated, spec: s.spectators });
     const startBtn = $('#btn-start');
     startBtn.disabled = !(canEdit && seated >= 2);
   }
@@ -471,6 +588,7 @@ export class Hud {
     this.#renderRabbit(s);
     this.#renderReveal(s);
     this.#renderAway(s);
+    this.#renderJoin(s);
   }
 
   #renderTop(s) {
@@ -480,7 +598,7 @@ export class Hud {
     $('#btn-pause').title = t(s.paused ? 'top.resume' : 'top.pause');
     $('#btn-abort').disabled = s.phase === 'lobby' || s.mySeat == null;
     if (s.phase === 'lobby') {
-      info.innerHTML = `<span class="lv">${t('top.lobby')}</span><span class="muted">${t('top.players', { n: s.seats.filter(Boolean).length })}</span>`;
+      info.innerHTML = `<span class="lv">${t('top.lobby')}</span><span class="muted">${t('top.players', { n: s.seats.filter(Boolean).length, max: s.seats.length })}</span>`;
       return;
     }
     const l = s.level;
@@ -496,12 +614,15 @@ export class Hud {
   #renderPlates(s) {
     const h = s.hand;
     const lobby = s.phase === 'lobby';
+    // Free seats offer "sit down": in the lobby, and for spectators while late registration is open
+    const canSit = lobby || (s.lateReg && s.mySeat == null);
     for (const p of this.plates) {
       const seat = s.seats[p.seat];
       const el = p.el;
+      const exists = p.seat < s.seats.length;
       el.classList.toggle('empty', !seat);
-      el.classList.toggle('can-sit', !seat && lobby);
-      el.classList.toggle('hidden', !seat && !lobby);
+      el.classList.toggle('can-sit', exists && !seat && canSit);
+      el.classList.toggle('hidden', !exists || (!seat && !canSit));
       p.bet.classList.add('hidden');
       if (!seat) continue;
       const hp = h?.players[p.seat];
