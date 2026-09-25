@@ -1,6 +1,6 @@
 # ♠ PokerCrew
 
-Self-hosted **No-Limit Texas Hold'em tournaments** for up to 5 friends: a poker table rendered in **three.js** with built-in **voice and video chat**. There is a single table, and anyone with the URL can join without an account. The UI is available in English and German.
+Self-hosted **No-Limit Texas Hold'em tournaments** for 2 to 10 friends: a poker table rendered in **three.js** with built-in **voice and video chat**. There is a single table, and anyone with the URL can join without an account. The UI is available in English and German.
 
 ## Run locally
 

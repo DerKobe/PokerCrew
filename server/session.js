@@ -81,6 +81,7 @@ export class Session {
     on('gadget-play', () => this.playGadget(socket, token));
     on('stand', () => this.stand(token));
     on('config', (d) => this.setConfig(token, d));
+    on('seats', (n) => this.setSeats(n));
     on('start', () => this.start(token));
     on('action', (d) => this.action(token, d?.type, d?.amount));
     on('back', () => this.setAway(token, false));
@@ -139,10 +140,23 @@ export class Session {
 
   // ---------- Lobby ----------
 
+  // Late registration: while nobody has busted yet, spectators may take a free seat in a
+  // running tournament. They start with the regular stack and are dealt in from the next hand.
+  lateRegOpen() {
+    return this.phase === 'running' && !this.seats.some((s) => s?.eliminated) && this.#freeSeats() > 0;
+  }
+
+  #freeSeats() {
+    return this.seats.slice(0, this.config.seats).filter((s) => !s).length;
+  }
+
   sit(token, seat, name, gadget) {
-    if (this.phase !== 'lobby') throw new UserError('tournamentRunning');
+    const late = this.phase === 'running';
+    if (late && this.seatOfToken(token) != null) throw new UserError('tournamentRunning');
+    if (late && !this.lateRegOpen()) throw new UserError('lateRegClosed');
+    if (!late && this.phase !== 'lobby') throw new UserError('tournamentRunning');
     seat = Number(seat);
-    if (!Number.isInteger(seat) || seat < 0 || seat >= MAX_SEATS) throw new UserError('invalidSeat');
+    if (!Number.isInteger(seat) || seat < 0 || seat >= this.config.seats) throw new UserError('invalidSeat');
     name = String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 16);
     if (!name) throw new UserError('nameRequired');
     const current = this.seats[seat];
@@ -156,13 +170,13 @@ export class Session {
       token,
       name,
       gadget: isGadget(gadget) ? gadget : prevGadget,
-      stack: 0,
+      stack: late ? this.config.startingStack : 0,
       connected: true,
       away: false,
       eliminated: false,
       place: null,
     };
-    this.#addLog('sit', { name, seat });
+    this.#addLog(late ? 'lateJoin' : 'sit', { name, seat, stack: this.config.startingStack }, late ? 'system' : 'info');
     this.broadcast();
   }
 
@@ -187,8 +201,30 @@ export class Session {
   setConfig(token, data) {
     if (this.phase !== 'lobby') throw new UserError('configLocked');
     this.#requireSeat(token);
-    this.config = sanitizeConfig(data, this.config);
+    const next = sanitizeConfig(data, this.config);
+    this.#fitSeats(next);
+    this.config = next;
     this.broadcast();
+  }
+
+  // The seat count may be changed by anyone in the lobby, also before taking a seat
+  setSeats(n) {
+    if (this.phase !== 'lobby') throw new UserError('configLocked');
+    const next = sanitizeConfig({ seats: n }, this.config);
+    this.#fitSeats(next);
+    this.config = next;
+    this.broadcast();
+  }
+
+  // Never fewer seats than players already sitting; players on removed seats move to free ones
+  #fitSeats(next) {
+    next.seats = Math.max(next.seats, this.seats.filter(Boolean).length);
+    for (let i = next.seats; i < MAX_SEATS; i++) {
+      if (!this.seats[i]) continue;
+      const free = this.seats.findIndex((s, j) => !s && j < next.seats);
+      this.seats[free] = this.seats[i];
+      this.seats[i] = null;
+    }
   }
 
   start(token) {
@@ -565,7 +601,8 @@ export class Session {
       config: this.config,
       mySeat,
       paused: this.paused,
-      seats: this.seats.map((s, i) =>
+      lateReg: this.lateRegOpen(),
+      seats: this.seats.slice(0, this.config.seats).map((s, i) =>
         s
           ? {
               seat: i,

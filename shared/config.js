@@ -1,8 +1,10 @@
 // Shared tournament configuration (imported by the server and the browser).
 
-export const MAX_SEATS = 5;
+export const MAX_SEATS = 10;
+export const MIN_SEATS = 2;
+export const DEFAULT_SEATS = 5;
 
-// Default structure: 5 players x 10,000 chips, 10-minute levels.
+// Default structure: 5 seats, 10,000 chips each, 10-minute levels.
 // Rule of thumb: a tournament roughly ends once the big blind reaches ~1/30 of all chips.
 // With 50,000 chips in play that is level 7 (1,000/2,000) after ~60 minutes.
 export const DEFAULT_LEVELS = [
@@ -29,6 +31,7 @@ export const PRESETS = [
 
 export function defaultConfig() {
   return {
+    seats: DEFAULT_SEATS,
     startingStack: 10000,
     levelMinutes: 10,
     actionSeconds: 300,
@@ -45,6 +48,7 @@ function int(v, min, max, fallback) {
 export function sanitizeConfig(input, base = defaultConfig()) {
   const c = { ...base, levels: base.levels.map((l) => ({ ...l })) };
   if (!input || typeof input !== 'object') return c;
+  if ('seats' in input) c.seats = int(input.seats, MIN_SEATS, MAX_SEATS, c.seats);
   if ('startingStack' in input) c.startingStack = int(input.startingStack, 100, 10_000_000, c.startingStack);
   if ('levelMinutes' in input) c.levelMinutes = int(input.levelMinutes, 1, 120, c.levelMinutes);
   if ('actionSeconds' in input) c.actionSeconds = int(input.actionSeconds, 10, 300, c.actionSeconds);
@@ -78,7 +82,7 @@ export function levelAt(config, i) {
 }
 
 // Rough estimate of the tournament length in minutes.
-export function estimateMinutes(config, players = MAX_SEATS) {
+export function estimateMinutes(config, players = config.seats || DEFAULT_SEATS) {
   const total = config.startingStack * Math.max(2, players);
   for (let i = 0; i < 200; i++) {
     const l = levelAt(config, i);

@@ -2,7 +2,7 @@
 // plays an animation that everyone at the table sees and (more quietly) hears.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { gadgetAnchor, SEATS } from './scene.js';
+import { gadgetAnchor, MAX_SEATS } from './scene.js';
 import { rng } from './textures.js';
 import { tween, ease } from './tween.js';
 import { sfx } from './sound.js';
@@ -818,7 +818,8 @@ export class Gadgets {
   constructor({ stage, send, socket }) {
     this.stage = stage;
     this.send = send;
-    this.items = Array.from({ length: SEATS }, () => null);
+    this.items = Array.from({ length: MAX_SEATS }, () => null);
+    this.n = 5;
     this.mySeat = undefined;
     this.fx = new Puffs(stage.scene);
     this.raycaster = new THREE.Raycaster();
@@ -852,9 +853,11 @@ export class Gadgets {
   }
 
   update(state) {
-    const relayout = state.mySeat !== this.mySeat;
+    const relayout = state.mySeat !== this.mySeat || state.seats.length !== this.n;
     this.mySeat = state.mySeat;
-    state.seats.forEach((s, i) => {
+    this.n = state.seats.length;
+    this.items.forEach((_, i) => {
+      const s = state.seats[i];
       const kind = (s && KINDS[s.gadget] && s.gadget) || null;
       const cur = this.items[i];
       if ((cur?.kind ?? null) === kind) return;
@@ -880,13 +883,13 @@ export class Gadgets {
   }
 
   relayout() {
-    for (let i = 0; i < SEATS; i++) if (this.items[i]) this.#place(i);
+    for (let i = 0; i < MAX_SEATS; i++) if (this.items[i]) this.#place(i);
   }
 
   #place(i) {
     const me = this.mySeat != null && this.mySeat === i;
-    const pos = (i - (this.mySeat ?? 0) + SEATS) % SEATS;
-    const a = gadgetAnchor(pos, me ? 2.45 : 1.9);
+    const pos = (i - (this.mySeat ?? 0) + this.n) % this.n;
+    const a = gadgetAnchor(pos, me ? 2.45 : 1.9, this.n);
     const g = this.items[i].group;
     g.scale.setScalar(GADGET_SCALE);
     g.position.copy(a.pos);

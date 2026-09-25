@@ -413,8 +413,10 @@ body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opa
 /* ------------------------------------------------ Lobby */
 #lobby {
   position: fixed; inset: 0; z-index: 25;
-  display: grid; place-items: center;
-  padding: 72px 16px 16px;
+  /* anchored to the top: when the card grows (more seats, structure editor) it only grows
+     downwards, so the controls under the mouse do not jump */
+  display: grid; place-items: start center;
+  padding: max(72px, 9vh) 16px 16px;
   overflow-y: auto;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.6));
 }
@@ -454,7 +456,20 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .gadget-opt:hover { background: rgba(230, 196, 106, 0.08); }
 .gadget-opt.active { border-color: var(--gold); color: var(--gold); background: rgba(230, 196, 106, 0.13); transform: translateY(-1px); }
 .seat .sg { font-size: 14px; }
-.seatgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 16px; }
+.seats-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.seats-head .lbl { font-size: 12px; color: var(--muted); font-weight: 600; }
+.seat-count {
+  display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.seat-count button {
+  min-width: 30px; height: 28px; padding: 0 6px; border: 0; border-radius: 999px; background: none;
+  color: var(--muted); font: 700 13px/1 Inter, sans-serif; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.seat-count button:hover:not(:disabled) { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.seat-count button.active { background: rgba(230, 196, 106, 0.2); color: var(--gold); }
+.seat-count button:disabled { opacity: 0.3; cursor: default; }
+.seatgrid { display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr); gap: 8px; margin-bottom: 16px; }
 .seat {
   display: grid; gap: 4px; justify-items: center; text-align: center;
   padding: 12px 6px; border-radius: 12px; min-height: 92px; align-content: center;
@@ -498,6 +513,20 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .lobby-foot { display: flex; align-items: center; gap: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 18px; margin-top: 18px; }
 .lobby-foot .who { color: var(--muted); }
 .lobby-foot .primary { margin-left: auto; }
+
+/* ------------------------------------------------ Late registration */
+#join {
+  position: fixed; inset: 0; z-index: 27; display: grid; place-items: center; padding: 72px 16px 16px;
+  overflow-y: auto; background: rgba(0, 0, 0, 0.5);
+}
+.join-card { width: min(560px, 100%); }
+.join-seats { display: flex; flex-wrap: wrap; gap: 6px; }
+.join-seats .chip-btn { min-width: 44px; padding: 7px 12px; font-size: 14px; }
+#join .lobby-foot { justify-content: flex-end; gap: 10px; }
+#join-cta {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 18;
+  padding: 12px 20px; border-radius: 999px; box-shadow: var(--shadow); white-space: nowrap;
+}
 
 /* ------------------------------------------------ Results */
 #results { position: fixed; inset: 0; z-index: 26; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.45); }

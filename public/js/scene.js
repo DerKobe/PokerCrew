@@ -6,11 +6,9 @@ import {
   carpetTexture, dealerButtonTexture, setMaxAnisotropy,
 } from './textures.js';
 import { updateTweens, tween, ease } from './tween.js';
+import { MAX_SEATS } from '/shared/config.js';
 
-export const SEATS = 5;
-// Angles of the display positions (0 = bottom/own seat, clockwise)
-const SEAT_ANGLES = [0, 80, 146, 214, 280].map((d) => (d * Math.PI) / 180);
-const SEAT_ANGLES_PORTRAIT = [0, 58, 152, 208, 302].map((d) => (d * Math.PI) / 180);
+export { MAX_SEATS };
 
 function stadiumShape(a, r, holeOf = null) {
   const s = new THREE.Shape();
@@ -57,14 +55,6 @@ function stadiumPoint(dx, dz, r = TABLE.r) {
   return { p: new THREE.Vector3(x, 0, z), n: new THREE.Vector3(n.x, 0, n.y) };
 }
 
-// Same in world coordinates (in portrait the table group is rotated by +90° around Y:
-// local (x, z) -> world (z, -x))
-function worldStadiumPoint(dx, dz) {
-  if (!portrait) return stadiumPoint(dx, dz);
-  const { p, n } = stadiumPoint(-dz, dx);
-  return { p: new THREE.Vector3(p.z, 0, -p.x), n: new THREE.Vector3(n.z, 0, -n.x) };
-}
-
 // Push a point towards the table centre until it is at least `margin` away from the felt edge
 function clampToFelt(v, margin) {
   let x = portrait ? -v.z : v.x;
@@ -79,11 +69,28 @@ function clampToFelt(v, margin) {
   return portrait ? new THREE.Vector3(z, v.y, -x) : new THREE.Vector3(x, v.y, z);
 }
 
+// Seats are spread evenly along the felt edge. Display position 0 (your own seat, or seat 0
+// for spectators) is at the bottom centre of the screen; the others follow clockwise.
+function seatPoint(pos, count) {
+  const R = TABLE.r;
+  const L = 4 * TABLE.a + 2 * Math.PI * R;
+  // landscape: middle of the bottom long side; portrait: apex of the (rotated) left end
+  const start = portrait ? TABLE.a + (Math.PI / 2) * R : 0;
+  const q = perimeterAt(start + (pos * L) / count, R);
+  return { p: tableToWorld(q.x, 0, q.z), n: tableToWorld(q.nx, 0, q.nz) };
+}
+
+// Bets of a seat opposite the board would land on the pot: move them to the player's right
+function clearOfPot(v, right) {
+  const pot = POT_POS();
+  if (Math.hypot(v.x - pot.x, v.z - pot.z) < 1.25) v.addScaledVector(right, 1.5);
+  return v;
+}
+
 // me: own seat (raised cards right at the rail). Spectators see seat 0 in the normal
 // layout so cards lying flat do not stick out over the rail.
-export function seatAnchors(pos, me = pos === 0) {
-  const ang = (portrait ? SEAT_ANGLES_PORTRAIT : SEAT_ANGLES)[pos];
-  const { p, n } = worldStadiumPoint(-Math.sin(ang), Math.cos(ang));
+export function seatAnchors(pos, me = pos === 0, count = 5) {
+  const { p, n } = seatPoint(pos, count);
   const right = new THREE.Vector3(n.z, 0, -n.x); // right from the player's point of view
   const raw = (inset, side = 0, y = 0) => p.clone().addScaledVector(n, -inset).addScaledVector(right, side).setY(y);
   // At the rounded ends a sideways offset would otherwise drift onto the wooden edge
@@ -96,7 +103,7 @@ export function seatAnchors(pos, me = pos === 0) {
     edge: p,
     cards: me ? raw(0.3, 0) : at(1.4, 0, 0, 0.8), // own seat: bottom edge of the cards
     stack: me ? raw(0.95, portrait ? 1.8 : 2.1) : at(1.0, 1.75, 0, 1.0),
-    bet: me ? raw(2.9, 0) : at(3.0, 0.2, 0, 1.2),
+    bet: me ? raw(2.9, 0) : clearOfPot(at(3.0, 0.2, 0, 1.2), right),
     button: me ? raw(1.2, portrait ? -1.7 : -1.9) : at(1.9, -1.45, 0, 0.55),
     plate: me ? raw(-0.95, 0, 0.6) : raw(-0.75, 0, 0.6),
     ring: me ? raw(0.95, 0, 0.012) : at(1.4, 0, 0.012, 0.8),
@@ -133,12 +140,9 @@ function perimeterAt(s, R) {
 }
 
 // Spot for the gadget: on the wooden racetrack, `along` units left of the seat
-export function gadgetAnchor(pos, along) {
-  const ang = (portrait ? SEAT_ANGLES_PORTRAIT : SEAT_ANGLES)[pos];
-  let dx = -Math.sin(ang);
-  let dz = Math.cos(ang);
-  if (portrait) [dx, dz] = [-dz, dx];
-  const { p } = stadiumPoint(dx, dz);
+export function gadgetAnchor(pos, along, count = 5) {
+  const { p: w } = seatPoint(pos, count);
+  const p = portrait ? { x: -w.z, z: w.x } : w; // back to table coordinates
   const R = TABLE.r + 0.2;
   const q = perimeterAt(perimeterParam(p.x, p.z, R) + along, R);
   const n = tableToWorld(q.nx, 0, q.nz);

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { createCard, cardQuat, CARD_H } from './cards.js';
 import { buildStack } from './chips.js';
-import { seatAnchors, BOARD_POS, POT_POS, DECK_POS, SEATS, tableYaw, tableToWorld } from './scene.js';
+import { seatAnchors, BOARD_POS, POT_POS, DECK_POS, MAX_SEATS, tableYaw, tableToWorld } from './scene.js';
 import { tween, ease, wait, setSpeed, finishAllTweens } from './tween.js';
 import { sfx } from './sound.js';
 
@@ -13,7 +13,8 @@ export class TableView {
     this.stage = stage;
     this.scene = stage.scene;
     this.mySeat = undefined;
-    this.seats = Array.from({ length: SEATS }, () => ({ cards: [], stack: null, stackAmt: -1, bet: null, betAmt: 0, lastAction: null }));
+    this.n = 5; // seats at the table (config.seats)
+    this.seats = Array.from({ length: MAX_SEATS }, () => ({ cards: [], stack: null, stackAmt: -1, bet: null, betAmt: 0, lastAction: null }));
     this.board = [];
     this.pot = null;
     this.potAmt = 0;
@@ -32,11 +33,11 @@ export class TableView {
   // ---------- Geometry ----------
 
   displayPos(seat) {
-    return (seat - (this.mySeat ?? 0) + SEATS) % SEATS;
+    return (seat - (this.mySeat ?? 0) + this.n) % this.n;
   }
 
   anchors(seat) {
-    return seatAnchors(this.displayPos(seat), this.isMe(seat));
+    return seatAnchors(this.displayPos(seat), this.isMe(seat), this.n);
   }
 
   isMe(seat) {
@@ -103,9 +104,12 @@ export class TableView {
 
   async #apply(state) {
     const perspective = state.mySeat;
-    const instant = this.first || perspective !== this.mySeat || this.pending > 2 || document.hidden;
-    if (perspective !== this.mySeat) {
+    const n = state.seats.length;
+    const relayout = perspective !== this.mySeat || n !== this.n;
+    const instant = this.first || relayout || this.pending > 2 || document.hidden;
+    if (relayout) {
       this.mySeat = perspective;
+      this.n = n;
       this.#clearAll();
     }
     this.first = false;
@@ -192,7 +196,7 @@ export class TableView {
 
   async #syncFolds(h) {
     const jobs = [];
-    for (let seat = 0; seat < SEATS; seat++) {
+    for (let seat = 0; seat < this.n; seat++) {
       const s = this.seats[seat];
       const p = h.players[seat];
       if (s.cards.length && (!p || p.folded)) {
@@ -217,7 +221,7 @@ export class TableView {
     const h = state.hand;
     // Bets that drop to 0 move into the pot
     const collect = [];
-    for (let seat = 0; seat < SEATS; seat++) {
+    for (let seat = 0; seat < this.n; seat++) {
       const s = this.seats[seat];
       const bet = h.players[seat]?.bet || 0;
       if (s.bet && s.betAmt > 0 && bet === 0) collect.push(seat);
@@ -248,7 +252,7 @@ export class TableView {
     this.#setPot(potTarget);
     // New/changed bets
     const jobs = [];
-    for (let seat = 0; seat < SEATS; seat++) {
+    for (let seat = 0; seat < this.n; seat++) {
       const s = this.seats[seat];
       const bet = h.players[seat]?.bet || 0;
       if (bet === s.betAmt) continue;
@@ -364,7 +368,7 @@ export class TableView {
 
   async #syncReveals(h) {
     const jobs = [];
-    for (let seat = 0; seat < SEATS; seat++) {
+    for (let seat = 0; seat < this.n; seat++) {
       if (this.isMe(seat)) continue;
       const s = this.seats[seat];
       const cards = h.players[seat]?.cards;
@@ -437,7 +441,7 @@ export class TableView {
   // ---------- Chips ----------
 
   #syncStacks(state, force = false) {
-    for (let seat = 0; seat < SEATS; seat++) {
+    for (let seat = 0; seat < this.n; seat++) {
       const info = state.seats[seat];
       const s = this.seats[seat];
       let amount = 0;
@@ -521,7 +525,7 @@ export class TableView {
   }
 
   #syncActionSounds(h) {
-    for (let seat = 0; seat < SEATS; seat++) {
+    for (let seat = 0; seat < this.n; seat++) {
       const la = h.players[seat]?.lastAction;
       const s = this.seats[seat];
       const key = la ? `${la.type}:${la.amount || 0}` : null;
