@@ -367,7 +367,6 @@ export class ChipFidget {
       this.el.setPointerCapture(e.pointerId);
     } catch {}
     this.drag = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, entry };
-    this.stage.freezeParallax = true;
     this.stage.setCursor('chips', 'grabbing');
     this.send('fidget', { type: 'start', pile: hit.pile, seed });
   }
@@ -404,7 +403,6 @@ export class ChipFidget {
     if (!this.drag) return;
     const { entry, moved, t } = this.drag;
     this.drag = null;
-    this.stage.freezeParallax = false;
     this.stage.setCursor('chips', 'grab');
     const r = entry.riffle;
     if (r.done) return;

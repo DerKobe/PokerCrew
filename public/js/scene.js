@@ -160,7 +160,6 @@ export function gadgetAnchor(pos, along, count = 5) {
 
 // Table-fixed points (board, pot, deck) are defined in table coordinates and rotate with the
 // table in portrait – like a real table seen from its short end.
-const ZERO2 = new THREE.Vector2();
 
 export const tableYaw = () => (portrait ? Math.PI / 2 : 0);
 export function tableToWorld(x, y, z) {
@@ -221,14 +220,12 @@ export class Stage {
 
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 120);
     this.target = new THREE.Vector3(0, 0, 0.7);
-    this.mouse = new THREE.Vector2();
-    this.smoothMouse = new THREE.Vector2();
     this.idle = true;
     this.feltTitle = 'PokerCrew';
     this.feltColor = 'green';
     this.rimKind = 'wood'; // material of the ring around the felt (this.rim is the rim light)
-    this.fixed = false;
-    this.motionK = 1;
+    // the OS "reduce motion" setting turns off the idle sway and the dramatic river zoom
+    this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
     this.#lights();
     this.#table();
@@ -245,9 +242,6 @@ export class Stage {
     window.addEventListener('resize', onResize);
     window.visualViewport?.addEventListener('resize', onResize);
     if (window.ResizeObserver) new ResizeObserver(onResize).observe(container);
-    window.addEventListener('pointermove', (e) => {
-      this.mouse.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
-    });
     this.resize();
     this.timer = new THREE.Timer();
     renderer.setAnimationLoop(() => this.#frame());
@@ -532,21 +526,14 @@ export class Stage {
     this.timer.update();
     const t = this.timer.getElapsed();
     updateTweens();
-    // "Fixed table" (fixed = true): no parallax, no idle sway, no camera move for the dramatic
-    // river. motionK eases between 0 and 1 so switching does not jump.
-    this.motionK += ((this.fixed ? 0 : 1) - this.motionK) * 0.06;
-    // While riffling chips the camera should not follow the mouse
-    if (!this.freezeParallax) this.smoothMouse.lerp(this.fixed ? ZERO2 : this.mouse, 0.04);
-    // Camera: slightly tilted top view, subtle parallax, gentle sway when idle
-    // Drama focus (dramatic river): the camera moves closer and lower towards a point
-    const f = ease.inOutCubic(this.focusK || 0) * this.motionK;
-    const elev = this.elevation - f * 0.13;
+    // Camera: fixed, slightly tilted top view – it does not follow the mouse. It only moves for
+    // the dramatic river (closer and lower towards a point) and sways gently while idle.
+    const motion = this.reducedMotion.matches ? 0 : 1;
+    const f = ease.inOutCubic(this.focusK || 0) * motion;
+    const e = this.elevation - f * 0.13;
     const d = this.baseDist * (1 - f * 0.42);
     const target = this.focusK ? this.target.clone().lerp(this.focusPoint, f) : this.target;
-    const sway = this.idle ? Math.sin(t * 0.15) * 0.12 * this.motionK : 0;
-    const yawOff = this.smoothMouse.x * 0.05 + sway;
-    const pitchOff = this.smoothMouse.y * 0.025;
-    const e = elev + pitchOff;
+    const yawOff = this.idle ? Math.sin(t * 0.15) * 0.12 * motion : 0;
     if (this.debugCam) {
       // development only (?debug): fixed camera for close-ups
       this.camera.position.copy(this.debugCam.pos);
