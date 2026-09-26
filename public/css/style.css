@@ -288,17 +288,19 @@ body.in-lobby .plate.can-sit .sit { display: none; }
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); animation: fade-in 0.3s ease-out;
 }
 @keyframes fade-in { from { opacity: 0; } }
+/* centred at the bottom of the screen, right under your own name plate */
 #actions {
-  position: fixed; right: 16px; bottom: 16px; z-index: 16;
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 16;
   background: var(--glass-2); border: 1px solid var(--line); border-radius: 16px;
   padding: 12px; backdrop-filter: blur(12px); box-shadow: var(--shadow);
   width: min(460px, calc(100vw - 32px));
-  animation: pop 0.2s ease-out;
+  animation: pop-centered 0.2s ease-out;
 }
 #actions.waiting { width: auto; padding: 8px 14px; }
 #actions .pre { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
 #actions .pre input { accent-color: var(--gold); width: 16px; height: 16px; }
 @keyframes pop { from { transform: translateY(10px); opacity: 0; } }
+@keyframes pop-centered { from { transform: translate(-50%, 10px); opacity: 0; } }
 .timebar { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin-bottom: 10px; }
 .timebar i { display: block; height: 100%; background: var(--gold); transform-origin: left; transition: transform 0.25s linear; }
 .timebar.hurry i { background: var(--red); }
@@ -365,8 +367,8 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 
 /* ------------------------------------------------ All-in runout */
 #reveal {
-  position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 17;
-  animation: pop 0.2s ease-out;
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 17;
+  animation: pop-centered 0.2s ease-out;
 }
 #reveal button {
   position: relative; overflow: hidden;
@@ -389,9 +391,10 @@ body.drama #vignette::after { opacity: 1; }
 body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opacity: 0.35; transition: opacity 0.8s; }
 
 /* ------------------------------------------------ Rabbit Cam */
+/* positioned every frame right under the community cards (hud.js) */
 #rabbit {
-  position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 17;
-  animation: pop 0.2s ease-out;
+  position: fixed; left: 0; top: 0; z-index: 17;
+  animation: fade-in 0.2s ease-out;
 }
 #rabbit button {
   position: relative; overflow: hidden;
@@ -413,14 +416,27 @@ body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opa
   padding: 3px 10px; border-radius: 999px;
 }
 
+/* ------------------------------------------------ Runout odds (heads-up all-in) */
+.odds {
+  position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 14px 7px; border-radius: 14px; border: 2px solid var(--gold);
+  background: rgba(10, 11, 13, 0.88); color: var(--gold); white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55); animation: fade-in 0.3s ease-out;
+}
+.odds b { font: 800 30px/1 Inter, sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.odds small { font-weight: 700; font-size: 12.5px; opacity: 0.9; }
+.odds.lead { border-color: #3fca73; color: #7ef0a4; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 18px rgba(63, 202, 115, 0.35); }
+.odds.trail { border-color: #f0734f; color: #ffb199; }
+
 /* ------------------------------------------------ Show cards after an uncontested win */
 /* where the action panel usually sits, so your own cards and plate stay visible */
 #showcards {
-  position: fixed; right: 16px; bottom: 76px; z-index: 17;
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 17;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: 10px 12px 14px; border-radius: 16px; overflow: hidden;
   background: var(--glass); border: 1px solid rgba(230, 196, 106, 0.45); backdrop-filter: blur(10px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); animation: pop 0.2s ease-out;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); animation: pop-centered 0.2s ease-out;
 }
 #showcards .sc-title { font-weight: 700; font-size: 13px; color: var(--gold); letter-spacing: 0.02em; }
 #showcards .sc-opts { display: flex; gap: 8px; }
@@ -649,11 +665,15 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #log { left: auto; right: 16px; bottom: auto; top: 58px; width: auto; }
   #log .log-toggle span { display: none; }
   #log.open { width: min(320px, calc(100vw - 32px)); }
-  #actions { left: 8px; right: 8px; bottom: 8px; width: auto; }
+  #actions { left: 8px; right: 8px; bottom: 8px; width: auto; transform: none; animation-name: pop; }
   #actions.waiting { left: auto; right: 16px; bottom: 16px; }
-  #showcards { right: auto; left: 50%; transform: translateX(-50%); bottom: max(128px, 36vh); }
+  #reveal { bottom: 72px; }
+  #showcards { bottom: max(128px, 36vh); }
   #voice .mic-btn span { display: none; }
   #strength { font-size: 13px; padding: 4px 12px; }
+  .odds { padding: 4px 10px 5px; }
+  .odds b { font-size: 22px; }
+  .odds small { font-size: 11px; }
   .plate { min-width: 0; padding: 4px 10px 4px 4px; gap: 6px; }
   .plate .avatar { width: 34px; height: 34px; font-size: 12px; }
   .plate.has-video .avatar { width: 56px; height: 56px; margin: -14px 0 -14px -4px; }

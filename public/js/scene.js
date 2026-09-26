@@ -226,6 +226,7 @@ export class Stage {
     this.rimKind = 'wood'; // material of the ring around the felt (this.rim is the rim light)
     // the OS "reduce motion" setting turns off the idle sway and the dramatic river zoom
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    this.reserveBottom = 0; // px kept free for the action panel (see setReserveBottom)
 
     this.#lights();
     this.#table();
@@ -499,16 +500,45 @@ export class Stage {
     this.size = { w, h };
     // false: only the drawing buffer is resized; the canvas always fills the container via CSS
     this.renderer.setSize(w, h, false);
-    const aspect = w / h;
-    this.camera.aspect = aspect;
-    const wantPortrait = aspect < 0.85;
+    const wantPortrait = w / h < 0.85;
     if (wantPortrait !== portrait) {
       portrait = wantPortrait;
       this.table.rotation.y = tableYaw();
       this.#printFelt();
       this.onLayout?.();
     }
-    // The visible area (table + nameplates) has to fit
+    this.#fit(w, h, 0);
+    // Landscape: the action panel sits at the bottom centre, right under your own name plate.
+    // If the plate would reach into that reserved strip, the table is drawn in a shorter area
+    // at the top of the screen (only as much shorter as needed).
+    const limit = h - this.reserveBottom;
+    if (!portrait && this.reserveBottom > 0) {
+      let inset = 0;
+      for (let i = 0; i < 4; i++) {
+        this.#restPose();
+        const y = this.project(seatAnchors(0, true).plate).y + 28; // bottom edge of the plate
+        if (y <= limit) break;
+        inset = Math.min(h * 0.4, inset + ((y - limit) * (h - inset)) / y + 1);
+        this.#fit(w, h, inset);
+      }
+    }
+  }
+
+  // Keep a strip of `px` at the bottom of the screen free for the action panel (landscape)
+  setReserveBottom(px) {
+    if (px === this.reserveBottom) return;
+    this.reserveBottom = px;
+    this.size = null;
+    this.resize();
+  }
+
+  // Camera distance so that table + name plates fit into the top `h - inset` pixels
+  #fit(w, h, inset) {
+    const vh = h - inset;
+    const aspect = w / vh;
+    this.camera.aspect = aspect;
+    if (inset > 0) this.camera.setViewOffset(w, vh, 0, 0, w, h);
+    else this.camera.clearViewOffset();
     const fovV = THREE.MathUtils.degToRad(this.camera.fov);
     const needW = portrait ? 14.2 : 21.5;
     const needH = portrait ? 19.5 : 14.5;
@@ -520,6 +550,14 @@ export class Stage {
     this.scene.fog.near = this.baseDist * 1.25;
     this.scene.fog.far = this.baseDist * 2.6;
     this.camera.updateProjectionMatrix();
+  }
+
+  // The camera pose without any motion (used to measure the layout)
+  #restPose() {
+    const e = this.elevation;
+    this.camera.position.set(this.target.x, this.target.y + Math.sin(e) * this.baseDist, this.target.z + Math.cos(e) * this.baseDist);
+    this.camera.lookAt(this.target);
+    this.camera.updateMatrixWorld();
   }
 
   #frame() {
