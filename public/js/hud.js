@@ -6,9 +6,10 @@ import { cardBackPreview } from './textures.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { GADGETS, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
-import { t, fmt, fmtMin, clock, describeHand, describeHole, langPicker, applyStatic, onLangChange } from './i18n.js';
+import { t, fmt, fmtMin, clock, describeHand, describeHole, langPicker, applyStatic, onLangChange, getLang } from './i18n.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
+const SUITS = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const mmss = (ms) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -135,6 +136,12 @@ export class Hud {
     $('#rabbit button').onclick = () => {
       this.send('rabbit');
       $('#rabbit').classList.add('hidden');
+    };
+    $('#showcards').onclick = (e) => {
+      const b = e.target.closest('[data-show]');
+      if (!b) return;
+      this.send('show', b.dataset.show === 'both' ? 'both' : Number(b.dataset.show));
+      $('#showcards').classList.add('hidden');
     };
 
     // Top bar
@@ -671,6 +678,7 @@ export class Hud {
     this.#renderResults(s);
     this.#renderBanner(s);
     this.#renderRabbit(s);
+    this.#renderShowCards(s);
     this.#renderReveal(s);
     this.#renderAway(s);
     this.#renderJoin(s);
@@ -829,6 +837,12 @@ export class Hud {
       const left = this.rabbitDeadline - performance.now();
       rabbitBar.style.transform = `scaleX(${Math.max(0, left / 5000)})`;
       if (left <= 0) $('#rabbit').classList.add('hidden');
+    }
+    const showBar = $('#showcards:not(.hidden) .bar');
+    if (showBar) {
+      const left = this.showDeadline - performance.now();
+      showBar.style.transform = `scaleX(${Math.max(0, left / this.showTotal)})`;
+      if (left <= 0) $('#showcards').classList.add('hidden');
     }
     const bar = $('#actions .timebar i');
     if (bar && h?.legal) {
@@ -1098,6 +1112,28 @@ export class Hud {
     const show = !!rb?.cards;
     this.rabbitLabel.classList.toggle('hidden', !show);
     if (show) this.rabbitLabel.textContent = `🐇 Rabbit Cam · ${rb.by}`;
+  }
+
+  // Won because everybody else folded: offer to show the left card, the right card or both
+  #renderShowCards(s) {
+    const o = s.showOffer;
+    const cards = s.mySeat != null ? s.hand?.players?.[s.mySeat]?.cards : null;
+    const offer = !!o && o.seat === s.mySeat && !o.done && o.remaining > 0 && !!cards?.[0] && !!cards?.[1];
+    const el = $('#showcards');
+    el.classList.toggle('hidden', !offer);
+    if (!offer) return;
+    this.showDeadline = performance.now() + o.remaining;
+    this.showTotal = o.total;
+    const key = `${s.hand.id}:${getLang()}`;
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    const mini = (c) => `<span class="mini ${'hd'.includes(c[1]) ? 'red' : ''}">${c[0] === 'T' ? '10' : c[0]}${SUITS[c[1]]}</span>`;
+    el.innerHTML = `<div class="sc-title">${t('show.title')}</div>
+      <div class="sc-opts">
+        <button data-show="0">${mini(cards[0])}</button>
+        <button data-show="1">${mini(cards[1])}</button>
+        <button data-show="both" class="both">${mini(cards[0])}${mini(cards[1])}<em>${t('show.both')}</em></button>
+      </div><i class="bar"></i>`;
   }
 
   #renderBanner(s) {

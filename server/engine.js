@@ -50,6 +50,7 @@ export class HandEngine {
     this.minRaise = bb;
     this.toAct = null;
     this.revealed = new Set();
+    this.shown = new Map(); // seat -> indices of the hole cards the winner chose to show
     this.results = null;
     this.pots = [];
     this.events = [];
@@ -306,6 +307,17 @@ export class HandEngine {
     return false;
   }
 
+  // After winning uncontested, the winner may show one or both hole cards (indices 0/1)
+  showCards(seat, indices) {
+    if (this.phase !== 'complete' || !this.results?.uncontested) throw new UserError('cannotShow');
+    if (this.results.pots[0].winners[0] !== seat) throw new UserError('cannotShow');
+    if (this.shown.has(seat)) throw new UserError('alreadyShown');
+    const idx = [...new Set(indices)].filter((i) => i === 0 || i === 1).sort();
+    if (!idx.length) throw new UserError('cannotShow');
+    this.shown.set(seat, idx);
+    return idx.map((i) => this.player(seat).cards[i]);
+  }
+
   // Rabbit Cam: the board cards that would have come (incl. burn cards), without changing the deck
   rabbitCards() {
     const deck = this.deck.slice();
@@ -413,6 +425,7 @@ export class HandEngine {
     const players = {};
     for (const p of this.players) {
       const show = p.seat === viewerSeat || this.revealed.has(p.seat);
+      const shown = this.shown.get(p.seat);
       players[p.seat] = {
         bet: p.bet,
         committed: p.committed,
@@ -420,7 +433,8 @@ export class HandEngine {
         folded: p.folded,
         allIn: p.allIn,
         lastAction: p.lastAction,
-        cards: show ? p.cards : null,
+        // voluntarily shown cards: the other card stays hidden (null)
+        cards: show ? p.cards : shown ? p.cards.map((c, i) => (shown.includes(i) ? c : null)) : null,
         hasCards: !p.folded,
       };
     }
@@ -440,6 +454,7 @@ export class HandEngine {
       currentBet: this.currentBet,
       toAct: this.toAct,
       players,
+      shown: Object.fromEntries(this.shown),
       legal: viewerSeat != null ? this.legalActions(viewerSeat) : null,
       results: this.results
         ? {

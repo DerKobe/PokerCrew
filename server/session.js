@@ -14,6 +14,8 @@ const DELAY = {
   uncontested: 3200,
   rabbitWindow: 5000, // how long the Rabbit Cam can be requested
   rabbitShow: 5000, // how long the Rabbit Cam cards stay on the table
+  showWindow: 7000, // uncontested winner: how long they may choose to show their cards
+  showStay: 3500, // shown cards stay on the table at least this long
   revealTimeout: 20_000, // all-in runout: reveal automatically if nobody clicks
   dramatic: 7500, // pause after a dramatic river before the showdown
   away: 1200, // away players act automatically
@@ -42,6 +44,7 @@ export class Session {
   #resetTournament() {
     clearTimeout(this.actionTimer);
     clearTimeout(this.stepTimer);
+    clearTimeout(this.showTimer);
     this.phase = 'lobby';
     this.seats = Array.from({ length: MAX_SEATS }, () => null);
     this.hand = null;
@@ -100,6 +103,7 @@ export class Session {
     on('newTournament', () => this.newTournament(token));
     on('chat', (text) => this.chat(token, text));
     on('rabbit', () => this.rabbitCam(token));
+    on('show', (which) => this.showCards(token, which));
     on('reveal', () => this.revealBoard(token));
     on('fidget', (d) => this.fidget(socket, token, d));
     on('topple', (d) => this.topple(socket, token, d?.seat));
@@ -338,6 +342,8 @@ export class Session {
   #startHand(first = false) {
     this.stepDeadline = 0;
     this.rabbit = null;
+    this.showOffer = null;
+    clearTimeout(this.showTimer);
     this.pendingReveal = null;
     if (this.phase !== 'running') return;
     if (this.paused) {
@@ -498,15 +504,54 @@ export class Session {
       this.#addLog('win', { names, pot: which, amount: pot.amount, hand: pot.hand }, 'win');
     }
     this.#awardTrophies(h);
+    // Everybody else folded: the winner may show one or both hole cards
+    const winner = r.uncontested ? r.pots[0].winners[0] : null;
+    const botWinner = winner != null && !!this.seats[winner].bot;
+    this.showOffer = winner != null ? { handId: h.handId, seat: winner, until: Date.now() + this.delay.showWindow, done: false } : null;
+    let wait = r.uncontested ? this.delay.uncontested : this.delay.showdown;
+    if (winner != null && !botWinner) wait = Math.max(wait, this.delay.showWindow);
     // Rabbit Cam: if the hand ends before the river, players may briefly request the remaining cards
     if (r.uncontested && h.board.length < 5) {
       this.rabbit = { handId: h.handId, until: Date.now() + this.delay.rabbitWindow, cards: null, by: null };
-      this.#step(this.delay.rabbitWindow, () => this.#afterHand());
+      wait = Math.max(wait, this.delay.rabbitWindow);
     } else {
       this.rabbit = null;
-      this.#step(r.uncontested ? this.delay.uncontested : this.delay.showdown, () => this.#afterHand());
     }
+    this.#step(wait, () => this.#afterHand());
+    if (botWinner) this.#botShow(winner);
     this.broadcast();
+  }
+
+  showCards(token, which) {
+    const seat = this.#requireSeat(token);
+    const o = this.showOffer;
+    if (!o || o.seat !== seat || !this.hand || this.hand.handId !== o.handId || Date.now() > o.until) throw new UserError('cannotShow');
+    this.#show(seat, which);
+  }
+
+  // which: 'both', 0 or 1
+  #show(seat, which) {
+    const cards = this.hand.showCards(seat, which === 'both' ? [0, 1] : [Number(which)]);
+    this.showOffer.done = true;
+    this.#addLog('show', { name: this.seats[seat].name, cards }, 'system');
+    // give the table a moment to look at them
+    if (this.stepDeadline - Date.now() < this.delay.showStay) this.#step(this.delay.showStay, () => this.#afterHand());
+    this.broadcast();
+  }
+
+  // Bots like to show off now and then – the wilder the style, the more often
+  #botShow(seat) {
+    const chance = { maniac: 0.5, lag: 0.3, station: 0.15, trapper: 0.1, tag: 0.1, rock: 0.05 }[this.seats[seat].bot] ?? 0.1;
+    if (Math.random() >= chance) return;
+    const handId = this.hand.handId;
+    const which = ['both', 'both', 0, 1][randomInt(4)];
+    this.showTimer = setTimeout(
+      () => this.#safe(() => {
+        if (this.hand?.handId === handId && !this.showOffer?.done) this.#show(seat, which);
+      }),
+      between(700, 1600),
+    );
+    this.showTimer.unref?.();
   }
 
   #awardTrophies(h) {
@@ -747,6 +792,10 @@ export class Session {
           ? { next: this.pendingReveal.next, remaining: Math.max(0, this.pendingReveal.until - now) }
           : null,
       drama: !!this.hand?.dramaticRiver,
+      showOffer:
+        this.showOffer && this.hand?.handId === this.showOffer.handId
+          ? { seat: this.showOffer.seat, done: this.showOffer.done, remaining: Math.max(0, this.showOffer.until - now), total: this.delay.showWindow }
+          : null,
       rabbit:
         this.rabbit && this.hand && this.rabbit.handId === this.hand.handId
           ? { open: !this.rabbit.cards && now < this.rabbit.until, remaining: Math.max(0, this.rabbit.until - now), cards: this.rabbit.cards, by: this.rabbit.by }
@@ -777,6 +826,7 @@ export class Session {
     clearInterval(this.levelTicker);
     clearTimeout(this.actionTimer);
     clearTimeout(this.stepTimer);
+    clearTimeout(this.showTimer);
   }
 }
 

@@ -412,6 +412,34 @@ body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opa
   padding: 3px 10px; border-radius: 999px;
 }
 
+/* ------------------------------------------------ Show cards after an uncontested win */
+/* where the action panel usually sits, so your own cards and plate stay visible */
+#showcards {
+  position: fixed; right: 16px; bottom: 76px; z-index: 17;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 10px 12px 14px; border-radius: 16px; overflow: hidden;
+  background: var(--glass); border: 1px solid rgba(230, 196, 106, 0.45); backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); animation: pop 0.2s ease-out;
+}
+#showcards .sc-title { font-weight: 700; font-size: 13px; color: var(--gold); letter-spacing: 0.02em; }
+#showcards .sc-opts { display: flex; gap: 8px; }
+#showcards button {
+  display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); color: inherit;
+}
+#showcards button:hover { background: rgba(230, 196, 106, 0.18); border-color: rgba(230, 196, 106, 0.6); }
+#showcards button em { font-style: normal; font-weight: 700; font-size: 13px; margin-left: 4px; }
+#showcards .mini {
+  display: inline-grid; place-items: center; min-width: 30px; height: 40px; padding: 0 3px;
+  background: #f7f3ea; color: #15130f; border-radius: 5px; font-weight: 800; font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+#showcards .mini.red { color: #c0262d; }
+#showcards .bar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: var(--gold); transform-origin: left; transition: transform 0.25s linear;
+}
+
 /* ------------------------------------------------ Lobby */
 #lobby {
   position: fixed; inset: 0; z-index: 25;
@@ -624,6 +652,7 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #log.open { width: min(320px, calc(100vw - 32px)); }
   #actions { left: 8px; right: 8px; bottom: 8px; width: auto; }
   #actions.waiting { left: auto; right: 16px; bottom: 16px; }
+  #showcards { right: auto; left: 50%; transform: translateX(-50%); bottom: max(128px, 36vh); }
   #voice .mic-btn span { display: none; }
   #strength { bottom: auto; top: 52px; font-size: 13px; }
   .plate { min-width: 0; padding: 4px 10px 4px 4px; gap: 6px; }
