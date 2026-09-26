@@ -5,6 +5,7 @@ import { buildStack } from './chips.js';
 import { seatAnchors, BOARD_POS, BOARD_CENTER, POT_POS, DECK_POS, MAX_SEATS, tableYaw, tableToWorld, boardScale, ownCardScale } from './scene.js';
 import { tween, ease, wait, setSpeed, finishAllTweens } from './tween.js';
 import { sfx } from './sound.js';
+import { showdownRole } from '/shared/cards.js';
 
 const _q = new THREE.Quaternion();
 
@@ -292,7 +293,7 @@ export class TableView {
   }
 
   // Deciding river: camera move, dimmed light, heartbeat, slow squeeze
-  async #dramaticRiver(card, slot) {
+  async #dramaticRiver(card, slot, h) {
     const down = cardQuat(0, false);
     const up = cardQuat(0, true);
     const sc = boardScale();
@@ -316,7 +317,13 @@ export class TableView {
       await this.#fly(card, slot.clone().setY(0.14), up, sc, { duration: 1300, arc: 0.12 });
       beating = false;
       sfx.flip();
-      sfx.sting();
+      // the ending depends on your part in it: fanfare for the winner, sad trombone for the
+      // loser, split coins when you share the pot, the usual sting for everybody watching
+      const role = this.mySeat != null && h.board.length === 5 ? showdownRole(h.players, h.board, this.mySeat) : 'watch';
+      if (role === 'win') sfx.fanfare();
+      else if (role === 'lose') sfx.sadTrombone();
+      else if (role === 'split') sfx.splitPot();
+      else sfx.sting();
       card.userData.setHighlight('win');
       await this.#fly(card, slot, up, sc, { duration: 280, arc: 0 });
       await wait(950);
@@ -341,7 +348,7 @@ export class TableView {
       const delay = (i - start) * 170;
       const slot = BOARD_POS(i);
       if (i === 4 && this.drama) {
-        jobs.push(this.#dramaticRiver(card, slot));
+        jobs.push(this.#dramaticRiver(card, slot, h));
         continue;
       }
       jobs.push(

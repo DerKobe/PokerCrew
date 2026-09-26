@@ -4,7 +4,7 @@ import { evaluateBest, evaluate5 } from '../shared/cards.js';
 import { HandEngine } from '../server/engine.js';
 import { trophiesFor } from '../server/trophies.js';
 import { fastScore } from '../shared/odds.js';
-import { createDeck, rankValue } from '../shared/cards.js';
+import { createDeck, rankValue, showdownRole } from '../shared/cards.js';
 
 const score = (s) => evaluateBest(s.split(' ')).score;
 
@@ -335,4 +335,28 @@ test('Fast evaluator (odds) scores exactly like evaluateBest', () => {
     const cards = deck.slice(0, 5 + (n % 3));
     assert.equal(fastScore(cards.map((c) => [rankValue(c), suit[c[1]]])), evaluateBest(cards).score, cards.join(' '));
   }
+});
+
+test('Showdown role (dramatic river sound): win, lose, split, watch', () => {
+  const board = ['2h', '7d', '9s', 'Jc', 'Kd'];
+  const players = {
+    0: { cards: ['Ah', 'Kh'], folded: false }, // pair of kings, ace kicker
+    1: { cards: ['Qs', 'Qd'], folded: false }, // pair of queens
+    2: { cards: ['3c', '4c'], folded: true },
+  };
+  assert.equal(showdownRole(players, board, 0), 'win');
+  assert.equal(showdownRole(players, board, 1), 'lose');
+  assert.equal(showdownRole(players, board, 2), 'watch', 'folded');
+  assert.equal(showdownRole(players, board, 5), 'watch', 'not in the hand');
+  // the board plays for both: a straight on the board splits the pot
+  const straight = ['5h', '6d', '7s', '8c', '9d'];
+  const split = { 0: { cards: ['2c', '3d'], folded: false }, 1: { cards: ['2d', '3c'], folded: false }, 3: { cards: ['4s', '2s'], folded: false } };
+  assert.equal(showdownRole(split, straight, 0), 'split');
+  assert.equal(showdownRole(split, straight, 1), 'split');
+  assert.equal(showdownRole(split, straight, 3), 'split', '4-5-6-7-8 is lower, but the board straight plays');
+  const three = { 0: { cards: ['Ah', 'Kh'], folded: false }, 1: { cards: ['Ad', 'Kc'], folded: false }, 2: { cards: ['Qs', 'Qd'], folded: false } };
+  assert.equal(showdownRole(three, board, 0), 'split');
+  assert.equal(showdownRole(three, board, 2), 'lose', 'loses against the two who split');
+  // hidden cards (not revealed): cannot judge
+  assert.equal(showdownRole({ 0: { cards: ['Ah', 'Kh'], folded: false }, 1: { cards: null, folded: false } }, board, 0), 'watch');
 });
