@@ -264,6 +264,7 @@ const DICT = {
       allIn: (p) => `All-in ${fmt(p.amount)}`,
     },
     reveal: { flop: 'Flop aufdecken', turn: 'Turn aufdecken', river: 'River aufdecken' },
+    show: { title: 'Karten zeigen?', both: 'Beide' },
     banner: {
       wins: 'gewinnt',
       split: 'teilen',
@@ -302,6 +303,7 @@ const DICT = {
         return `${p.names.join(' & ')} ${verb} ${pot} (${fmt(p.amount)})${p.hand ? ` mit ${describeHand(p.hand)}` : ''}.`;
       },
       rabbit: (p) => `🐇 ${p.name} will die Rabbit Cam sehen: ${p.cards.map(cardLabel).join(' ')}`,
+      show: (p) => `${p.name} zeigt ${p.cards.map(cardLabel).join(' ')}.`,
       bust: (p) => `${p.name} scheidet auf Platz ${p.place} aus.`,
       champion: (p) => `🏆 ${p.name} gewinnt das Turnier!`,
       pause: (p) => `${p.name} pausiert das Turnier${p.afterHand ? ' (nach dieser Hand)' : ''}.`,
@@ -317,6 +319,8 @@ const DICT = {
     },
     err: {
       generic: 'Das hat nicht geklappt.',
+      cannotShow: 'Karten zeigen geht gerade nicht.',
+      alreadyShown: 'Du hast deine Karten schon gezeigt.',
       tournamentRunning: 'Das Turnier läuft bereits.',
       lateRegClosed: 'Einsteigen ist nicht mehr möglich – jemand ist schon ausgeschieden oder alle Plätze sind belegt.',
       invalidSeat: 'Ungültiger Platz',
@@ -487,6 +491,7 @@ const DICT = {
       allIn: (p) => `All-in ${fmt(p.amount)}`,
     },
     reveal: { flop: 'Reveal the flop', turn: 'Reveal the turn', river: 'Reveal the river' },
+    show: { title: 'Show your cards?', both: 'Both' },
     banner: {
       wins: 'wins',
       split: 'split',
@@ -525,6 +530,7 @@ const DICT = {
         return `${p.names.join(' & ')} ${verb} ${pot} (${fmt(p.amount)})${p.hand ? ` with ${describeHand(p.hand)}` : ''}.`;
       },
       rabbit: (p) => `🐇 ${p.name} wants to see the Rabbit Cam: ${p.cards.map(cardLabel).join(' ')}`,
+      show: (p) => `${p.name} shows ${p.cards.map(cardLabel).join(' ')}.`,
       bust: (p) => `${p.name} is out in ${ordinal(p.place)} place.`,
       champion: (p) => `🏆 ${p.name} wins the tournament!`,
       pause: (p) => `${p.name} pauses the tournament${p.afterHand ? ' (after this hand)' : ''}.`,
@@ -540,6 +546,8 @@ const DICT = {
     },
     err: {
       generic: "That didn't work.",
+      cannotShow: "You can't show your cards right now.",
+      alreadyShown: 'You have already shown your cards.',
       tournamentRunning: 'The tournament is already running.',
       lateRegClosed: 'You can no longer join – someone has been eliminated already or all seats are taken.',
       invalidSeat: 'Invalid seat',

@@ -70,7 +70,7 @@ export class TableView {
       const toward = A.cards.clone().addScaledVector(A.normal, -0.45);
       return {
         pos: toward.addScaledVector(new THREE.Vector3(1, 0, 0), (i - 0.5) * 0.98).setY(0.03 + i * 0.035),
-        quat: cardQuat(-(i - 0.5) * 0.05, true),
+        quat: cardQuat(-(i - 0.5) * 0.05, faceUp),
         scale: 0.95,
       };
     }
@@ -376,13 +376,18 @@ export class TableView {
   async #syncReveals(h) {
     const jobs = [];
     for (let seat = 0; seat < this.n; seat++) {
-      if (this.isMe(seat)) continue;
       const s = this.seats[seat];
+      if (this.isMe(seat)) {
+        // own cards shown after an uncontested win: they glow so you know what the table sees
+        for (const i of h.shown?.[seat] || []) s.cards[i]?.userData.setHighlight('win');
+        continue;
+      }
       const cards = h.players[seat]?.cards;
-      if (!cards || !s.cards.length || s.cards[0].userData.code) continue;
+      // cards may be shown only partly (winner shows one card): the other one stays face down
+      if (!cards || !s.cards.length || !s.cards.some((card, i) => cards[i] && !card.userData.code)) continue;
       s.cards.forEach((card, i) => {
-        card.userData.setFace(cards[i]);
-        const t = this.holeTarget(seat, i, true, true);
+        if (cards[i]) card.userData.setFace(cards[i]);
+        const t = this.holeTarget(seat, i, !!cards[i], true);
         jobs.push(this.#fly(card, t.pos, t.quat, t.scale, { duration: 480, delay: i * 80, arc: 0.6 }));
       });
       sfx.flip();

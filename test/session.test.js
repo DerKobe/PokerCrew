@@ -27,7 +27,7 @@ const fakeIo = { emit() {} };
 
 test('A full tournament with 5 players ends with a winner', async () => {
   const s = new Session(fakeIo, {
-    delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, disconnected: 1 },
+    delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, disconnected: 1 },
   });
   s.config.startingStack = 1000;
   s.config.levels = [{ sb: 50, bb: 100, ante: 0 }];
@@ -74,7 +74,7 @@ test('A full tournament with 5 players ends with a winner', async () => {
 });
 
 test('Timeout: automatic check/fold, player is marked away', async () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, disconnected: 1 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, disconnected: 1 } });
   const a = new FakeSocket('a', 'token-timeout-a');
   const b = new FakeSocket('b', 'token-timeout-b');
   s.connect(a);
@@ -97,7 +97,7 @@ test('Timeout: automatic check/fold, player is marked away', async () => {
 });
 
 test('Rabbit Cam: 5-second window after a hand ends early', async () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 80, rabbitShow: 80 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 80, rabbitShow: 80 } });
   const socks = [new FakeSocket('ra', 'token-rabbit-a'), new FakeSocket('rb', 'token-rabbit-b'), new FakeSocket('rs', 'token-rabbit-spec')];
   socks.forEach((so) => s.connect(so));
   socks[0].send('sit', { seat: 0, name: 'A' });
@@ -132,7 +132,7 @@ test('Rabbit Cam: 5-second window after a hand ends early', async () => {
 });
 
 test('All-in runout: the board is only revealed on click, fallback after a timeout', async () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 5000, uncontested: 1, rabbitWindow: 1, revealTimeout: 200, dramatic: 1 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 5000, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 200, dramatic: 1 } });
   const socks = [new FakeSocket('va', 'token-reveal-a'), new FakeSocket('vb', 'token-reveal-b'), new FakeSocket('vs', 'token-reveal-spec')];
   socks.forEach((so) => s.connect(so));
   socks[0].send('sit', { seat: 1, name: 'A' });
@@ -163,7 +163,7 @@ test('All-in runout: the board is only revealed on click, fallback after a timeo
 });
 
 test('Gadgets: chosen in the lobby, locked during the tournament', () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, away: 1 } });
   const a = new FakeSocket('ga', 'token-gadget-a');
   const b = new FakeSocket('gb', 'token-gadget-b');
   s.connect(a);
@@ -194,7 +194,7 @@ test('Gadgets: chosen in the lobby, locked during the tournament', () => {
 });
 
 test('Seat count: configurable 2-10, never below the seated players', () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, away: 1 } });
   const socks = [0, 1, 2].map((i) => new FakeSocket(`c${i}`, `token-count-${i}`));
   for (const so of socks) s.connect(so);
   // anyone in the lobby may pick the seat count, the rest of the structure needs a seat
@@ -220,7 +220,7 @@ test('Seat count: configurable 2-10, never below the seated players', () => {
 });
 
 test('Late registration: free seat while nobody has busted, dealt in from the next hand', async () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1 } });
   const socks = [0, 1, 2].map((i) => new FakeSocket(`l${i}`, `token-late-${i}`));
   for (const so of socks) s.connect(so);
   socks[0].send('sit', { seat: 0, name: 'A' });
@@ -254,7 +254,7 @@ test('Late registration: free seat while nobody has busted, dealt in from the ne
 });
 
 test('Table look (name, felt, rim): editable by everyone in the lobby, sanitized, locked while running', () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, away: 1 } });
   const [a, b, spec] = [0, 1, 2].map((i) => new FakeSocket(`t${i}`, `token-title-${i}`));
   for (const so of [a, b, spec]) s.connect(so);
   assert.equal(spec.lastState.config.title, 'PokerCrew');
@@ -288,7 +288,7 @@ test('Table look (name, felt, rim): editable by everyone in the lobby, sanitized
 });
 
 test('Topple: knock over another stack, only the owner tidies it up', () => {
-  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, away: 1 } });
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, away: 1 } });
   const [a, b, spec] = [0, 1, 2].map((i) => new FakeSocket(`k${i}`, `token-topple-${i}`));
   for (const so of [a, b, spec]) s.connect(so);
   a.send('sit', { seat: 0, name: 'A' });
@@ -319,7 +319,7 @@ test('Topple: knock over another stack, only the owner tidies it up', () => {
 
 test('Bots: fill empty seats at the start and play a tournament to the end', async () => {
   const s = new Session(fakeIo, {
-    delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, botMin: 1, botMax: 2, botFast: 1, botTidy: 1 },
+    delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, botMin: 1, botMax: 2, botFast: 1, botTidy: 1 },
   });
   s.config.startingStack = 600;
   s.config.levels = [{ sb: 50, bb: 100, ante: 0 }];
@@ -348,4 +348,57 @@ test('Bots: fill empty seats at the start and play a tournament to the end', asy
   s.close();
   assert.equal(s.phase, 'finished');
   assert.equal(s.results.length, 5);
+});
+
+test('Show cards: after an uncontested win the winner may show one or both hole cards', async () => {
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, rabbitWindow: 1, showWindow: 200, showStay: 150 } });
+  const socks = [new FakeSocket('sa', 'token-show-a'), new FakeSocket('sb', 'token-show-b'), new FakeSocket('ss', 'token-show-spec')];
+  socks.forEach((so) => s.connect(so));
+  socks[0].send('sit', { seat: 0, name: 'A' });
+  socks[1].send('sit', { seat: 1, name: 'B' });
+  socks[0].send('start');
+  const bySeat = { 0: socks[0], 1: socks[1] };
+
+  // Hand 1: the player to act folds, the other one wins uncontested
+  const loser = s.hand.toAct;
+  const winner = loser === 0 ? 1 : 0;
+  bySeat[loser].send('action', { type: 'fold' });
+  const offer = bySeat[winner].lastState.showOffer;
+  assert.equal(offer.seat, winner);
+  assert.equal(offer.done, false);
+  assert.equal(socks[2].lastState.hand.players[winner].cards, null, 'nothing shown yet');
+
+  // Neither the loser nor a spectator may show
+  bySeat[loser].send('show', 'both');
+  socks[2].send('show', 'both');
+  assert.equal(s.hand.shown.size, 0);
+
+  // Show only the second card: the others see it, the first one stays hidden
+  const hole = s.hand.player(winner).cards;
+  bySeat[winner].send('show', 1);
+  assert.deepEqual(socks[2].lastState.hand.players[winner].cards, [null, hole[1]]);
+  assert.deepEqual(bySeat[loser].lastState.hand.players[winner].cards, [null, hole[1]]);
+  assert.deepEqual(socks[2].lastState.hand.shown, { [winner]: [1] });
+  assert.equal(socks[2].lastState.showOffer.done, true);
+  assert.ok(s.log.some((e) => e.key === 'show' && e.p.cards.length === 1 && e.p.cards[0] === hole[1]));
+
+  // Only once per hand
+  bySeat[winner].send('show', 'both');
+  assert.deepEqual(s.hand.shown.get(winner), [1]);
+  assert.equal(bySeat[winner].received.filter(([ev, d]) => ev === 'toast' && d?.key === 'err.alreadyShown').length, 1);
+
+  // Play continues after the display; the next hand starts with nothing shown
+  const hand1 = s.handCount;
+  await new Promise((r) => setTimeout(r, 250));
+  assert.equal(s.handCount, hand1 + 1);
+  assert.equal(socks[2].lastState.showOffer, null);
+  assert.deepEqual(socks[2].lastState.hand.shown, {});
+
+  // Hand 2: both cards
+  const loser2 = s.hand.toAct;
+  const winner2 = loser2 === 0 ? 1 : 0;
+  bySeat[loser2].send('action', { type: 'fold' });
+  bySeat[winner2].send('show', 'both');
+  assert.deepEqual(socks[2].lastState.hand.players[winner2].cards, s.hand.player(winner2).cards);
+  s.close();
 });
