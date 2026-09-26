@@ -1,5 +1,7 @@
 # ♠ PokerCrew
 
+![A PokerCrew table with six players: community cards on the felt, bets in front of the players, gadgets and trophies next to them, and a knocked-over chip stack](docs/table.jpg)
+
 Self-hosted **No-Limit Texas Hold'em tournaments** for 2 to 8 friends: a poker table rendered in **three.js** with built-in **voice and video chat**. There is a single table, and anyone with the URL can join without an account. The UI is available in English and German.
 
 ## Run locally
