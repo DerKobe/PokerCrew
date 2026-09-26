@@ -780,6 +780,15 @@ export class Hud {
     const v = new THREE.Vector3();
     const W = window.innerWidth;
     const H = window.innerHeight;
+    // Hand strength: on the bottom edge of your own cards, only after they were dealt and turned up
+    const strength = $('#strength');
+    const st = this.strength;
+    const showStrength = !!st && this.view.ownCardsUp === st.hand && this.state.mySeat != null;
+    strength.classList.toggle('hidden', !showStrength);
+    if (showStrength) {
+      const pt = this.stage.project(this.view.anchors(this.state.mySeat).cards, v);
+      strength.style.transform = `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%)`;
+    }
     for (const p of this.plates) {
       if (p.el.classList.contains('hidden')) continue;
       const A = this.view.anchors(p.seat);
@@ -866,12 +875,10 @@ export class Hud {
     const el = this.actions;
     const me = s.mySeat;
     const hp = h && me != null ? h.players[me] : null;
-    // Hand strength
-    const strength = $('#strength');
-    if (hp?.cards && !hp.folded) {
-      strength.textContent = describeHole(hp.cards, h.board);
-      strength.classList.remove('hidden');
-    } else strength.classList.add('hidden');
+    // Hand strength: shown and positioned in #frame once your cards lie face up
+    const text = hp?.cards && !hp.folded ? describeHole(hp.cards, h.board) : '';
+    this.strength = text ? { text, hand: h.id } : null;
+    if (text) $('#strength').textContent = text;
 
     if (h?.id !== this.autoHand) {
       this.autoHand = h?.id;

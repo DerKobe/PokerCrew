@@ -8,6 +8,7 @@ import { glassMaterial } from './gadgets.js';
 import { tween, ease } from './tween.js';
 import { sfx } from './sound.js';
 import { t } from './i18n.js';
+import { engravedPlateTexture } from './textures.js';
 
 const SCALE = 1.45; // larger than life so they are recognisable from the table view
 const GROWTH = 0.15; // each further trophy of the same kind makes it this much bigger ...
@@ -53,17 +54,35 @@ function tequilaModel() {
   return g;
 }
 
-// Seven and deuce on a little golden easel, leaning back so everyone can read them
+// Seven and deuce as engraved silver plates on a golden base, leaning back so everyone can read
+// them. The 2 stands a little in front of the 7, so the fanned plates never cut into each other.
+const silver = (extra = {}) =>
+  new THREE.MeshPhysicalMaterial({ color: 0xc4cad3, metalness: 1, roughness: 0.22, clearcoat: 0.6, envMapIntensity: 2.1, ...extra });
+
 function sevenDeuceModel() {
   const g = new THREE.Group();
-  const base = mesh(new THREE.BoxGeometry(0.32, 0.04, 0.18), gold());
+  const base = mesh(new THREE.BoxGeometry(0.34, 0.04, 0.2), gold());
   base.position.y = 0.02;
   g.add(base);
-  [['7h', -0.05, 0.1], ['2c', 0.05, -0.1]].forEach(([code, x, rz]) => {
-    const c = miniCard(code);
-    c.rotation.set(-1.0, 0, rz);
-    c.position.set(x, 0.17, -0.02);
-    g.add(c);
+  const W = 0.2;
+  const H = 0.28;
+  const T = 0.012;
+  const lean = new THREE.Group(); // the plates' plane, tilted back around the base's top edge
+  lean.position.set(0, 0.04, 0.02);
+  lean.rotation.x = -0.75;
+  g.add(lean);
+  const edge = silver();
+  [['7', 'h', -0.045, 0.16, -T * 0.8], ['2', 'c', 0.045, -0.16, T * 0.8]].forEach(([rank, suit, x, fan, z]) => {
+    const { map, bump } = engravedPlateTexture(rank, suit);
+    const face = silver({ map, bumpMap: bump, bumpScale: 1.2 });
+    const plate = mesh(new THREE.BoxGeometry(W, H, T), [edge, edge, edge, edge, face, edge]);
+    // rotate around the plate's bottom centre (fanned like a hand of cards)
+    const pivot = new THREE.Group();
+    pivot.position.set(x, 0, z);
+    pivot.rotation.z = fan;
+    plate.position.y = H / 2;
+    pivot.add(plate);
+    lean.add(pivot);
   });
   return g;
 }

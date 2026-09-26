@@ -149,6 +149,7 @@ export class TableView {
 
   async #newHand(state) {
     const h = state.hand;
+    this.ownCardsUp = null;
     await this.#collectCards();
     this.#clearBets();
     this.#setPot(0);
@@ -192,6 +193,8 @@ export class TableView {
           return this.#fly(card, t.pos, t.quat, t.scale, { duration: 380, arc: 0.35, delay: i * 90 });
         }),
       );
+      // the dealing animation is over: the HUD may now show the hand strength
+      this.ownCardsUp = h.id;
     }
   }
 
@@ -592,6 +595,7 @@ export class TableView {
   }
 
   async #collectCards() {
+    this.ownCardsUp = null;
     const cards = [...this.board, ...this.seats.flatMap((s) => s.cards)];
     this.board = [];
     for (const s of this.seats) s.cards = [];
@@ -607,6 +611,7 @@ export class TableView {
   }
 
   #clearAll() {
+    this.ownCardsUp = null;
     for (const c of [...this.board, ...this.seats.flatMap((s) => s.cards)]) this.scene.remove(c);
     this.board = [];
     for (const s of this.seats) {

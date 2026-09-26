@@ -122,6 +122,57 @@ export function drawSuit(ctx, suit, x, y, s, color, flip = false) {
   ctx.restore();
 }
 
+// Engraved metal plate in the shape of a card (7-2 trophy): rank and suit cut into polished
+// metal instead of a printed face, so it reads as a sculpture rather than a playing card.
+// Returns a colour map (multiplied with the metal colour) and a matching bump map.
+export function engravedPlateTexture(rank, suit) {
+  const W = 256;
+  const H = 358;
+  const draw = (ctx, bg, cut, rim) => {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    // brushed finish
+    if (rim) {
+      const r = rng(rank.charCodeAt(0));
+      for (let i = 0; i < 260; i++) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.04 + r() * 0.05})`;
+        ctx.fillRect(0, r() * H, W, 1);
+      }
+    }
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = cut;
+    roundRect(ctx, 16, 16, W - 32, H - 32, 20);
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = cut;
+    ctx.font = `800 190px ${SERIF}`;
+    ctx.fillText(rank, W / 2, H / 2 - 18);
+    drawSuit(ctx, suit, W / 2, H / 2 + 108, 34, cut);
+    ctx.font = `800 44px ${SERIF}`;
+    ctx.fillText(rank, 48, 52);
+    ctx.save();
+    ctx.translate(W - 48, H - 52);
+    ctx.rotate(Math.PI);
+    ctx.fillText(rank, 0, 0);
+    ctx.restore();
+  };
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  // light edge below/right of every cut, then the dark cut itself = bevelled engraving
+  ctx.save();
+  ctx.translate(3, 3);
+  draw(ctx, '#d4d8de', 'rgba(255, 255, 255, 0.9)', false);
+  ctx.restore();
+  ctx.globalCompositeOperation = 'multiply';
+  draw(ctx, '#ffffff', '#5d626b', false);
+  ctx.globalCompositeOperation = 'source-over';
+  draw(ctx, 'rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)', true);
+  const b = canvas(W, H);
+  draw(b.getContext('2d'), '#ffffff', '#000000', false);
+  return { map: toTexture(c), bump: toTexture(b, { srgb: false }) };
+}
+
 // ---------------------------------------------------------------- Table
 
 export const TABLE = {
