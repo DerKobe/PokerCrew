@@ -267,6 +267,8 @@ export class ChipFidget {
   // Server state: which stacks are knocked over. On the first state, existing messes snap into place.
   update(state) {
     this.toppled = state.toppled || {};
+    // players who protect their stack from being knocked over
+    this.protected = new Set(state.seats.map((s, i) => (s?.noTopple ? i : -1)).filter((i) => i >= 0));
     if (!this.synced) {
       this.synced = true;
       for (const [seat, t] of Object.entries(this.toppled)) this.seenSeed[seat] = t.seed;
@@ -347,7 +349,7 @@ export class ChipFidget {
     if (!hit) {
       // Someone else's stack: knock it over (once; the owner has to tidy it up)
       const seat = this.#pickOther(e);
-      if (seat != null && !this.#isToppled(seat)) {
+      if (seat != null && !this.#isToppled(seat) && !this.protected?.has(seat)) {
         e.preventDefault();
         this.send('topple', { seat });
       }
@@ -394,7 +396,7 @@ export class ChipFidget {
     if (this.#pick(e)) want = this.#isToppled(this.view.mySeat) ? 'pointer' : 'grab';
     else {
       const seat = this.#pickOther(e);
-      if (seat != null && !this.#isToppled(seat)) want = 'pointer';
+      if (seat != null && !this.#isToppled(seat) && !this.protected?.has(seat)) want = 'pointer';
     }
     this.stage.setCursor('chips', want);
   }

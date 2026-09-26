@@ -827,6 +827,7 @@ export class Gadgets {
     this.lastPlay = 0;
     this.lastHover = 0;
     this.first = true;
+    this.enabled = true; // personal setting: gadgets hidden and silent when off
     const el = stage.renderer.domElement;
     this.el = el;
     el.addEventListener('pointerdown', (e) => {
@@ -841,7 +842,7 @@ export class Gadgets {
       this.stage.setCursor('gadget', this.#pick(e) ? 'pointer' : '');
     });
     socket.on('gadget', (d) => {
-      if (document.hidden || d?.seat === this.mySeat) return;
+      if (!this.enabled || document.hidden || d?.seat === this.mySeat) return;
       this.items[d.seat]?.play(d.seed, REMOTE_VOLUME);
     });
     this.lastT = performance.now();
@@ -868,6 +869,7 @@ export class Gadgets {
       if (!kind) return;
       const g = new KINDS[kind](this.fx);
       g.kind = kind;
+      g.group.visible = this.enabled;
       this.items[i] = g;
       this.#place(i);
       this.stage.scene.add(g.group);
@@ -902,8 +904,19 @@ export class Gadgets {
     g.rotation.y = a.yaw;
   }
 
+  // Show / hide every gadget (and its smoke) – a personal setting
+  setEnabled(on) {
+    this.enabled = on;
+    for (const g of this.items) if (g) g.group.visible = on;
+    this.fx.group.visible = on;
+    if (!on) {
+      this.fx.clear();
+      this.stage.setCursor('gadget', '');
+    }
+  }
+
   #pick(e) {
-    const g = this.mySeat != null ? this.items[this.mySeat] : null;
+    const g = this.enabled && this.mySeat != null ? this.items[this.mySeat] : null;
     if (!g) return false;
     const rect = this.el.getBoundingClientRect();
     this.ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
@@ -923,6 +936,7 @@ export class Gadgets {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastT) / 1000);
     this.lastT = now;
+    if (!this.enabled) return;
     for (const g of this.items) g?.update(dt, t);
     this.fx.update(dt, t);
   }

@@ -108,6 +108,7 @@ export class Session {
     on('fidget', (d) => this.fidget(socket, token, d));
     on('topple', (d) => this.topple(socket, token, d?.seat));
     on('tidy', () => this.tidy(token));
+    on('prefs', (d) => this.setPrefs(token, d));
     on('voice-join', (d) => this.voiceJoin(socket, d));
     on('voice-signal', (d) => this.voiceSignal(socket, d));
     on('voice-mute', (d) => this.voiceMute(socket, d));
@@ -182,6 +183,7 @@ export class Session {
       throw new UserError('nameTaken');
     const old = this.seatOfToken(token);
     const prevGadget = old != null ? this.seats[old].gadget : null;
+    const prevNoTopple = old != null ? !!this.seats[old].noTopple : false;
     if (old != null) this.seats[old] = null;
     if (old != null) delete this.toppled[old];
     this.seats[seat] = {
@@ -194,6 +196,7 @@ export class Session {
       eliminated: false,
       place: null,
       trophies: [],
+      noTopple: prevNoTopple,
     };
     this.#addLog(late ? 'lateJoin' : 'sit', { name, seat, stack: this.config.startingStack }, late ? 'system' : 'info');
     this.broadcast();
@@ -687,7 +690,7 @@ export class Session {
   topple(socket, token, seat) {
     seat = Number(seat);
     const target = this.seats[seat];
-    if (!Number.isInteger(seat) || !target || target.eliminated || this.toppled[seat]) return;
+    if (!Number.isInteger(seat) || !target || target.eliminated || this.toppled[seat] || target.noTopple) return;
     if (this.seatOfToken(token) === seat || this.phase === 'finished') return;
     const c = this.clients.get(socket.id);
     const now = Date.now();
@@ -705,6 +708,22 @@ export class Session {
       }), this.delay.botTidy * (0.8 + Math.random() * 0.6));
       t.unref?.();
     }
+  }
+
+  // Personal settings that matter to the server: noTopple protects your stack from being knocked
+  // over (a stack lying on the table right now is tidied up).
+  setPrefs(token, d) {
+    const seat = this.seatOfToken(token);
+    if (seat == null || !d || typeof d !== 'object') return;
+    const s = this.seats[seat];
+    const noTopple = !!d.noTopple;
+    if (s.noTopple === noTopple) return;
+    s.noTopple = noTopple;
+    if (noTopple && this.toppled[seat]) {
+      delete this.toppled[seat];
+      this.#addLog('tidy', { name: s.name }, 'system');
+    }
+    this.broadcast();
   }
 
   tidy(token) {
@@ -778,6 +797,7 @@ export class Session {
               gadget: s.gadget || null,
               trophies: s.trophies || [],
               bot: s.bot || null,
+              noTopple: !!s.noTopple,
               stack: hv?.players[i] ? hv.players[i].stack : s.stack,
               connected: s.connected,
               away: s.away,

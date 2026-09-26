@@ -324,6 +324,32 @@ test('Topple: knock over another stack, only the owner tidies it up', () => {
   s.close();
 });
 
+test('Topple protection: a player can protect their stack (personal setting)', () => {
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, away: 1 } });
+  const [a, b, spec] = [0, 1, 2].map((i) => new FakeSocket(`p${i}`, `token-protect-${i}`));
+  for (const so of [a, b, spec]) s.connect(so);
+  a.send('sit', { seat: 0, name: 'A' });
+  b.send('sit', { seat: 1, name: 'B' });
+  spec.send('prefs', { noTopple: true }); // not seated: nothing to protect
+  assert.equal(a.lastState.seats[1].noTopple, false);
+  // a mess lying on the table is tidied up when the owner switches the protection on
+  a.send('topple', { seat: 1 });
+  assert.ok(s.toppled[1]);
+  b.send('prefs', { noTopple: true });
+  assert.equal(s.toppled[1], undefined);
+  assert.equal(a.lastState.seats[1].noTopple, true, 'everybody sees that the stack is protected');
+  a.send('topple', { seat: 1 });
+  spec.send('topple', { seat: 1 });
+  assert.equal(s.toppled[1], undefined, 'protected');
+  // the setting survives switching seats or renaming
+  b.send('sit', { seat: 2, name: 'Bea' });
+  assert.equal(s.seats[2].noTopple, true);
+  b.send('prefs', { noTopple: false });
+  spec.send('topple', { seat: 2 }); // (A is still rate-limited from the first joke)
+  assert.ok(s.toppled[2], 'unprotected again');
+  s.close();
+});
+
 test('Bots: fill empty seats at the start and play a tournament to the end', async () => {
   const s = new Session(fakeIo, {
     delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, botMin: 1, botMax: 2, botFast: 1, botTidy: 1 },

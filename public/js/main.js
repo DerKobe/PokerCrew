@@ -9,6 +9,7 @@ import { Gadgets } from './gadgets.js';
 import { Trophies } from './trophies.js';
 import { t } from './i18n.js';
 import { setCardBack } from './cards.js';
+import { prefs, onPrefChange } from './prefs.js';
 
 // Entering needs a click so the browser allows audio playback and microphone access.
 // The handler is registered right away; the rest may still wait for the scene to load.
@@ -64,6 +65,29 @@ if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { _
 let iceServers = null;
 let voice = null;
 
+// Personal settings (⋮ → Settings): what you see and hear, and whether your stack can be knocked
+// over – the latter lives on the server, so it is sent whenever it differs from your seat
+let lastState = null;
+let sentNoTopple = null;
+function syncNoTopple() {
+  const s = lastState;
+  if (s?.mySeat == null) return;
+  if (!!s.seats[s.mySeat]?.noTopple === prefs.noTopple) {
+    sentNoTopple = null;
+    return;
+  }
+  if (sentNoTopple === prefs.noTopple) return;
+  sentNoTopple = prefs.noTopple;
+  send('prefs', { noTopple: prefs.noTopple });
+}
+gadgets.setEnabled(prefs.gadgets);
+trophies.setVisible(prefs.trophies);
+onPrefChange((key, on) => {
+  if (key === 'gadgets') gadgets.setEnabled(on);
+  else if (key === 'trophies') trophies.setVisible(on);
+  else if (key === 'noTopple') syncNoTopple();
+});
+
 socket.on('welcome', (w) => {
   localStorage.setItem('pc.token', w.token);
   iceServers = w.iceServers;
@@ -78,6 +102,8 @@ socket.on('state', (s) => {
   trophies.update(s);
   hud.update(s);
   stage.idle = s.phase !== 'running';
+  lastState = s;
+  syncNoTopple();
 });
 socket.on('toast', (m) => hud.toast(m.key ? t(m.key, m.p) : m.text, m.kind));
 socket.on('disconnect', () => document.body.classList.add('disconnected'));
