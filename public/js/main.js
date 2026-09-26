@@ -2,7 +2,7 @@ import { Stage } from './scene.js';
 import { TableView } from './table-view.js';
 import { Hud } from './hud.js';
 import { Voice } from './voice.js';
-import { audioContext } from './sound.js';
+import { audioContext, sfx } from './sound.js';
 import { preloadCardArt } from './textures.js';
 import { ChipFidget } from './fidget.js';
 import { Gadgets } from './gadgets.js';
@@ -58,8 +58,9 @@ stage.onLayout = () => {
   gadgets.relayout();
   trophies.relayout();
 };
-// Developer aid: ?debug in the URL exposes the scene, table view and gadgets in the console
-if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { __stage: stage, __view: view, __gadgets: gadgets, __trophies: trophies });
+// Developer aid: ?debug in the URL exposes the scene, table view, gadgets and sounds in the console
+// (e.g. __sfx.fanfare() or __sfx.sadTrombone() to listen to a sound)
+if (new URLSearchParams(location.search).has('debug')) Object.assign(window, { __stage: stage, __view: view, __gadgets: gadgets, __trophies: trophies, __sfx: sfx });
 let iceServers = null;
 let voice = null;
 

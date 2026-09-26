@@ -74,6 +74,57 @@ function swell(t, dur, { type = 'bandpass', freq = 2000, sweepTo = null, q = 0.7
   src.stop(t + dur + 0.05);
 }
 
+// Brass-like note: two slightly detuned sawtooth waves through a low-pass filter.
+// wah: the filter opens and closes like a plunger mute; wobble: the mute keeps flapping;
+// bend: the pitch sags by that many Hz towards the end; vibrato: pitch vibrato depth in Hz.
+function brass(t, freq, dur, { gain = 0.1, bright = 2600, attack = 0.03, vibrato = 0, wah = false, wobble = 0, bend = 0, swellTo = 0 } = {}) {
+  const f = ctx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.Q.value = wah ? 5 : 1;
+  const g = ctx.createGain();
+  const oscs = [-7, 7].map((detune) => {
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(freq, t);
+    if (bend) o.frequency.linearRampToValueAtTime(freq - bend, t + dur);
+    o.detune.value = detune;
+    o.connect(f);
+    return o;
+  });
+  if (wah) {
+    f.frequency.setValueAtTime(320, t);
+    f.frequency.linearRampToValueAtTime(1500, t + Math.min(0.2, dur * 0.45));
+    f.frequency.exponentialRampToValueAtTime(420, t + dur);
+  } else {
+    f.frequency.setValueAtTime(bright * 0.3, t);
+    f.frequency.linearRampToValueAtTime(bright, t + attack + 0.05);
+    f.frequency.exponentialRampToValueAtTime(bright * 0.55, t + dur);
+  }
+  const lfo = (rate, depth, target, delay) => {
+    const l = ctx.createOscillator();
+    l.frequency.value = rate;
+    const lg = ctx.createGain();
+    lg.gain.setValueAtTime(0, t);
+    lg.gain.linearRampToValueAtTime(depth, t + delay);
+    l.connect(lg);
+    for (const x of target) lg.connect(x);
+    l.start(t);
+    l.stop(t + dur + 0.05);
+  };
+  if (vibrato) lfo(5.5, vibrato, oscs.map((o) => o.frequency), 0.35);
+  if (wobble) lfo(4.5, wobble, [f.frequency], 0.25);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(gain, t + attack);
+  if (swellTo) g.gain.linearRampToValueAtTime(swellTo, t + dur * 0.75);
+  else g.gain.setValueAtTime(gain, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  f.connect(g).connect(master);
+  for (const o of oscs) {
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  }
+}
+
 export const sfx = {
   muted: false,
   enabled: true,
@@ -112,6 +163,26 @@ export const sfx = {
     noise(t, 0.35, { type: 'highpass', freq: 1800, sweepTo: 9000, q: 0.5, gain: 0.16, attack: 0.05 });
     [392, 523.25, 659.25, 783.99].forEach((f) => tone(t + 0.02, f, 1.1, { type: 'triangle', gain: 0.07, attack: 0.03 }));
     tone(t, 98, 0.5, { gain: 0.3, attack: 0.005 });
+  },
+  // Dramatic river won: triumphant brass fanfare (ta-ta-ta-taaaa) with a cymbal
+  fanfare() {
+    if (!this.ok) return;
+    const t = ctx.currentTime;
+    [0, 0.13, 0.26].forEach((d) => brass(t + d, 392, 0.12, { gain: 0.1, attack: 0.015 }));
+    const hit = t + 0.42;
+    [261.63, 523.25, 659.25, 783.99].forEach((f, i) => brass(hit, f, 1.6, { gain: i ? 0.07 : 0.06, vibrato: 3.5 }));
+    tone(hit, 1046.5, 1.4, { type: 'triangle', gain: 0.05, attack: 0.05 });
+    noise(hit, 1.2, { type: 'highpass', freq: 5000, sweepTo: 9000, q: 0.4, gain: 0.12, attack: 0.01 });
+    tone(hit, 98, 0.5, { gain: 0.3, attack: 0.005 });
+  },
+  // Dramatic river lost: the sad trombone – "wah wah waaaAAh"
+  sadTrombone() {
+    if (!this.ok) return;
+    const t = ctx.currentTime;
+    brass(t, 293.66, 0.42, { gain: 0.11, wah: true });
+    brass(t + 0.48, 277.18, 0.42, { gain: 0.11, wah: true });
+    // the last one gets louder, flaps its mute and sags in pitch
+    brass(t + 0.96, 261.63, 1.7, { gain: 0.09, swellTo: 0.14, wah: true, wobble: 700, vibrato: 4, bend: 9 });
   },
   // Trophy earned: short rising chime with a sparkle on top
   trophy() {

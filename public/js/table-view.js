@@ -5,6 +5,7 @@ import { buildStack } from './chips.js';
 import { seatAnchors, BOARD_POS, BOARD_CENTER, POT_POS, DECK_POS, MAX_SEATS, tableYaw, tableToWorld, boardScale, ownCardScale } from './scene.js';
 import { tween, ease, wait, setSpeed, finishAllTweens } from './tween.js';
 import { sfx } from './sound.js';
+import { evaluateBest } from '/shared/cards.js';
 
 const _q = new THREE.Quaternion();
 
@@ -292,7 +293,7 @@ export class TableView {
   }
 
   // Deciding river: camera move, dimmed light, heartbeat, slow squeeze
-  async #dramaticRiver(card, slot) {
+  async #dramaticRiver(card, slot, h) {
     const down = cardQuat(0, false);
     const up = cardQuat(0, true);
     const sc = boardScale();
@@ -316,7 +317,12 @@ export class TableView {
       await this.#fly(card, slot.clone().setY(0.14), up, sc, { duration: 1300, arc: 0.12 });
       beating = false;
       sfx.flip();
-      sfx.sting();
+      // the ending depends on your part in it: fanfare for the winner, sad trombone for the
+      // loser, the usual sting for everybody watching (folded, spectating or a split)
+      const role = this.#riverRole(h);
+      if (role === 'win') sfx.fanfare();
+      else if (role === 'lose') sfx.sadTrombone();
+      else sfx.sting();
       card.userData.setHighlight('win');
       await this.#fly(card, slot, up, sc, { duration: 280, arc: 0 });
       await wait(950);
@@ -327,6 +333,23 @@ export class TableView {
       beating = false;
       await this.stage.drama(false);
     }
+  }
+
+  // Your part in the dramatic river: 'win' (your hand is the only best one), 'lose' (still in,
+  // but beaten) or 'watch' (folded, spectating, or a split). All hands are face up by then.
+  #riverRole(h) {
+    const me = this.mySeat;
+    const mine = me != null ? h.players[me] : null;
+    if (!mine?.cards || mine.folded || h.board.length < 5) return 'watch';
+    const scores = Object.entries(h.players)
+      .filter(([, p]) => !p.folded && p.cards?.every(Boolean))
+      .map(([seat, p]) => ({ seat: Number(seat), score: evaluateBest([...p.cards, ...h.board]).score }));
+    if (scores.length < 2) return 'watch';
+    const best = Math.max(...scores.map((x) => x.score));
+    const my = scores.find((x) => x.seat === me)?.score;
+    if (my == null) return 'watch';
+    if (my < best) return 'lose';
+    return scores.filter((x) => x.score === best).length === 1 ? 'win' : 'watch';
   }
 
   async #syncBoard(h) {
@@ -341,7 +364,7 @@ export class TableView {
       const delay = (i - start) * 170;
       const slot = BOARD_POS(i);
       if (i === 4 && this.drama) {
-        jobs.push(this.#dramaticRiver(card, slot));
+        jobs.push(this.#dramaticRiver(card, slot, h));
         continue;
       }
       jobs.push(
