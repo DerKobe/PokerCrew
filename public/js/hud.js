@@ -4,7 +4,7 @@ import { MAX_SEATS, POT_POS, BELOW_BOARD, tableToWorld, isPortrait } from './sce
 import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX, FELTS, RIMS, CARD_BACKS } from '/shared/config.js';
 import { cardBackPreview } from './textures.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
-import { GADGETS, isGadget } from '/shared/gadgets.js';
+import { GADGETS, GADGET_CHOICES, NO_GADGET, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
 import { t, fmt, fmtMin, clock, describeHand, describeHole, langPicker, applyStatic, onLangChange, getLang } from './i18n.js';
 
@@ -83,8 +83,9 @@ export class Hud {
     this.lastResultKey = null;
     this.lastTurnKey = null;
     this.name = localStorage.getItem('pc.name') || '';
+    // no gadget unless you picked one (an earlier pick is remembered)
     this.gadget = localStorage.getItem('pc.gadget');
-    if (!isGadget(this.gadget)) this.gadget = null;
+    if (!isGadget(this.gadget)) this.gadget = NO_GADGET;
     this.#build();
     onLangChange(() => this.#relocalize());
     stage.onFrame.push(() => this.#frame());
@@ -288,7 +289,7 @@ export class Hud {
         <label class="bots-row"><input type="checkbox" id="in-bots"> <span>🤖 ${t('lobby.bots')}</span> <em>${t('lobby.botsHint')}</em></label>
         <div class="gadget-row">
           <span class="lbl">${t('lobby.gadget')} <em>${t('lobby.gadgetHint')}</em></span>
-          <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${t(`gadget.${g.id}`)}</span></button>`).join('')}</div>
+          <div class="gadget-opts">${GADGET_CHOICES.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${t(`gadget.${g.id}`)}</span></button>`).join('')}</div>
         </div>
         <div class="struct">
           <div class="struct-head">
@@ -449,7 +450,7 @@ export class Hud {
         </div>
         <div class="gadget-row">
           <span class="lbl">${t('lobby.gadget')} <em>${t('lobby.gadgetHint')}</em></span>
-          <div class="gadget-opts">${GADGETS.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${t(`gadget.${g.id}`)}</span></button>`).join('')}</div>
+          <div class="gadget-opts">${GADGET_CHOICES.map((g) => `<button class="gadget-opt" data-g="${g.id}"><span class="gi">${g.icon}</span><span>${t(`gadget.${g.id}`)}</span></button>`).join('')}</div>
         </div>
         <div class="gadget-row">
           <span class="lbl">${t('join.seat')}</span>
@@ -563,7 +564,7 @@ export class Hud {
     el.querySelector('[data-stand]')?.addEventListener('click', () => this.send('stand'));
 
     // Gadget: the server's value wins once you are seated
-    const myGadget = s.mySeat != null ? s.seats[s.mySeat].gadget : this.gadget;
+    const myGadget = s.mySeat != null ? s.seats[s.mySeat].gadget || NO_GADGET : this.gadget;
     el.querySelectorAll('.gadget-opt').forEach((b) => b.classList.toggle('active', b.dataset.g === myGadget));
 
     // Structure

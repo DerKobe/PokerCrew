@@ -8,3 +8,7 @@ export const GADGETS = [
 ];
 
 export const isGadget = (id) => GADGETS.some((g) => g.id === id);
+
+// Explicit "no gadget" choice (the default); the seat then has gadget = null
+export const NO_GADGET = 'none';
+export const GADGET_CHOICES = [{ id: NO_GADGET, icon: '🚫' }, ...GADGETS];

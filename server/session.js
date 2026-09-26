@@ -2,7 +2,7 @@
 import { randomUUID, randomInt } from 'node:crypto';
 import { HandEngine } from './engine.js';
 import { MAX_SEATS, defaultConfig, sanitizeConfig, levelAt } from '../shared/config.js';
-import { isGadget } from '../shared/gadgets.js';
+import { isGadget, NO_GADGET } from '../shared/gadgets.js';
 import { UserError } from './errors.js';
 import { trophiesFor } from './trophies.js';
 import { pickBots, decide } from './bots.js';
@@ -187,7 +187,7 @@ export class Session {
     this.seats[seat] = {
       token,
       name,
-      gadget: isGadget(gadget) ? gadget : prevGadget,
+      gadget: gadget === NO_GADGET ? null : isGadget(gadget) ? gadget : prevGadget,
       stack: late ? this.config.startingStack : 0,
       connected: true,
       away: false,
@@ -213,8 +213,8 @@ export class Session {
   setGadget(token, id) {
     if (this.phase !== 'lobby') throw new UserError('gadgetLocked');
     const seat = this.#requireSeat(token);
-    if (!isGadget(id)) throw new UserError('unknownGadget');
-    this.seats[seat].gadget = id;
+    if (id !== NO_GADGET && !isGadget(id)) throw new UserError('unknownGadget');
+    this.seats[seat].gadget = id === NO_GADGET ? null : id;
     this.broadcast();
   }
 

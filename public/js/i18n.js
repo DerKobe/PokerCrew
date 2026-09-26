@@ -235,7 +235,7 @@ const DICT = {
     },
     back: { red: 'Klassisch Rot', blue: 'Königsblau', green: 'Smaragd', black: 'Schwarz-Gold', purple: 'Pflaume', ivory: 'Elfenbein' },
     look: { green: 'Grün', red: 'Rot', blue: 'Blau', wood: 'Holz', marbleDark: 'Dunkler Marmor', marbleLight: 'Heller Marmor' },
-    gadget: { cigar: 'Zigarre', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
+    gadget: { none: 'Kein Gadget', cigar: 'Zigarre', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
     plate: {
       sit: (p) => `Platz ${p.n} · Hinsetzen`,
       place: (p) => `Platz ${p.n}`,
@@ -460,7 +460,7 @@ const DICT = {
     },
     back: { red: 'Classic red', blue: 'Royal blue', green: 'Emerald', black: 'Black & gold', purple: 'Plum', ivory: 'Ivory' },
     look: { green: 'Green', red: 'Red', blue: 'Blue', wood: 'Wood', marbleDark: 'Dark marble', marbleLight: 'Light marble' },
-    gadget: { cigar: 'Cigar', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
+    gadget: { none: 'No gadget', cigar: 'Cigar', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
     plate: {
       sit: (p) => `Seat ${p.n} · Sit down`,
       place: (p) => `${ordinal(p.n)} place`,
