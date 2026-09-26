@@ -438,7 +438,7 @@ export class Hud {
       this.titleT = setTimeout(sendTitle, 400);
     });
     titleIn.addEventListener('change', sendTitle);
-    $('#btn-start').onclick = () => this.send('start');
+    $('#btn-start').onclick = () => this.#beginStart();
     $('#in-bots').onchange = (e) => this.send('config', { bots: e.target.checked });
     // Seat count: a direct choice (not +/-), so two people picking the same number do not fight;
     // open to everyone in the lobby, also before taking a seat
@@ -798,6 +798,8 @@ export class Hud {
   // Keep the HTML elements positioned every frame
   #frame() {
     if (!this.state) return;
+    // the table has taken over (first hand being dealt); shown at least briefly so it does not flash
+    if (this.starting && this.state.phase === 'running' && this.view.handId != null && performance.now() - this.starting.at > 700) this.#endStart();
     const v = new THREE.Vector3();
     const W = window.innerWidth;
     const H = window.innerHeight;
@@ -1331,7 +1333,31 @@ export class Hud {
     if (!this.relocalizing) sfx.win();
   }
 
+  // "Start tournament" clicked: the setup disappears at once and a small "Starting tournament …"
+  // modal bridges the time until the table has taken over (network + building the table).
+  // An error from the server or no answer at all brings the setup back.
+  #beginStart() {
+    if (this.starting) return;
+    this.starting = { at: performance.now() };
+    document.body.classList.add('starting');
+    $('#starting').classList.remove('hidden');
+    this.send('start');
+    clearTimeout(this.startTimer);
+    this.startTimer = setTimeout(() => this.#endStart(this.state?.phase === 'lobby'), 10000);
+  }
+
+  #endStart(failed = false) {
+    if (!this.starting) return;
+    this.starting = null;
+    clearTimeout(this.startTimer);
+    document.body.classList.remove('starting');
+    $('#starting').classList.add('hidden');
+    if (failed) this.toast(t('err.startTimeout'), 'error');
+  }
+
   toast(text, kind = 'info') {
+    // e.g. "at least two players needed": back to the setup
+    if (kind === 'error' && this.starting) this.#endStart();
     const t = document.createElement('div');
     t.className = `toast ${kind}`;
     t.textContent = text;

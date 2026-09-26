@@ -190,6 +190,7 @@ const DICT = {
       removeLevel: 'Level entfernen',
       readonly: 'Nur Spieler am Tisch können die Struktur ändern.',
       start: 'Turnier starten',
+      starting: 'Turnier startet …',
       standUp: 'Aufstehen',
       offline: 'offline',
       free: 'Freier Platz',
@@ -330,6 +331,7 @@ const DICT = {
     },
     err: {
       generic: 'Das hat nicht geklappt.',
+      startTimeout: 'Das Turnier ist nicht gestartet – bitte versuch es nochmal.',
       cannotShow: 'Karten zeigen geht gerade nicht.',
       alreadyShown: 'Du hast deine Karten schon gezeigt.',
       tournamentRunning: 'Das Turnier läuft bereits.',
@@ -428,6 +430,7 @@ const DICT = {
       removeLevel: 'Remove level',
       readonly: 'Only seated players can change the structure.',
       start: 'Start tournament',
+      starting: 'Starting tournament …',
       standUp: 'Stand up',
       offline: 'offline',
       free: 'Free seat',
@@ -568,6 +571,7 @@ const DICT = {
     },
     err: {
       generic: "That didn't work.",
+      startTimeout: "The tournament didn't start – please try again.",
       cannotShow: "You can't show your cards right now.",
       alreadyShown: 'You have already shown your cards.',
       tournamentRunning: 'The tournament is already running.',

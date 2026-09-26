@@ -485,6 +485,27 @@ body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opa
   background: var(--gold); transform-origin: left; transition: transform 0.25s linear;
 }
 
+/* ------------------------------------------------ Tournament starting */
+body.starting #lobby { display: none !important; }
+#starting {
+  position: fixed; inset: 0; z-index: 26; display: grid; place-items: center;
+  background: rgba(5, 6, 8, 0.45); backdrop-filter: blur(3px); animation: fade-in 0.2s ease-out;
+}
+.starting-card {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 26px 40px 24px; border-radius: 18px; background: var(--glass-2);
+  border: 1px solid var(--line); box-shadow: var(--shadow); animation: pop 0.25s ease-out;
+}
+.starting-card .suits { display: flex; gap: 12px; font-size: 30px; line-height: 1; color: #e9e4d8; }
+.starting-card .suits .red { color: #d8434b; }
+.starting-card .suits span { animation: suit-hop 1.2s ease-in-out infinite; }
+.starting-card .suits span:nth-child(2) { animation-delay: 0.15s; }
+.starting-card .suits span:nth-child(3) { animation-delay: 0.3s; }
+.starting-card .suits span:nth-child(4) { animation-delay: 0.45s; }
+@keyframes suit-hop { 0%, 60%, 100% { transform: translateY(0); opacity: 0.55; } 30% { transform: translateY(-9px); opacity: 1; } }
+.starting-text { font: italic 700 22px var(--serif); color: var(--gold); }
+@media (prefers-reduced-motion: reduce) { .starting-card .suits span { animation: none; opacity: 1; } }
+
 /* ------------------------------------------------ Lobby */
 #lobby {
   position: fixed; inset: 0; z-index: 25;
