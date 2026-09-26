@@ -389,9 +389,10 @@ body.drama #vignette::after { opacity: 1; }
 body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opacity: 0.35; transition: opacity 0.8s; }
 
 /* ------------------------------------------------ Rabbit Cam */
+/* positioned every frame right under the community cards (hud.js) */
 #rabbit {
-  position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 17;
-  animation: pop 0.2s ease-out;
+  position: fixed; left: 0; top: 0; z-index: 17;
+  animation: fade-in 0.2s ease-out;
 }
 #rabbit button {
   position: relative; overflow: hidden;

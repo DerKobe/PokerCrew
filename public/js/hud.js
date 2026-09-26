@@ -760,6 +760,22 @@ export class Hud {
     const W = window.innerWidth;
     const H = window.innerHeight;
     this.#placeOdds(v, W, H);
+    // Rabbit Cam button: right under the community cards
+    const rabbit = $('#rabbit');
+    const showPanel = $('#showcards');
+    showPanel.style.bottom = '';
+    if (!rabbit.classList.contains('hidden')) {
+      const b = this.stage.project(BELOW_BOARD(), v);
+      rabbit.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -25%)`;
+      // on phones both offers can meet in the middle: the show-cards panel moves below the button
+      if (!showPanel.classList.contains('hidden')) {
+        const r = rabbit.getBoundingClientRect();
+        const p = showPanel.getBoundingClientRect();
+        if (p.left < r.right && p.right > r.left && p.top < r.bottom && p.bottom > r.top) {
+          showPanel.style.bottom = `${Math.max(8, H - r.bottom - 8 - p.height)}px`;
+        }
+      }
+    }
     // Hand strength: on the bottom edge of your own cards, only after they were dealt and turned up
     const strength = $('#strength');
     const st = this.strength;
@@ -915,11 +931,11 @@ export class Hud {
       }
     }
     const revealBar = $('#reveal:not(.hidden) .bar');
-    if (revealBar) revealBar.style.transform = `scaleX(${Math.max(0, (this.revealDeadline - performance.now()) / 20000)})`;
+    if (revealBar) revealBar.style.transform = `scaleX(${Math.max(0, (this.revealDeadline - performance.now()) / this.revealTotal)})`;
     const rabbitBar = $('#rabbit:not(.hidden) .bar');
     if (rabbitBar) {
       const left = this.rabbitDeadline - performance.now();
-      rabbitBar.style.transform = `scaleX(${Math.max(0, left / 5000)})`;
+      rabbitBar.style.transform = `scaleX(${Math.max(0, left / this.rabbitTotal)})`;
       if (left <= 0) $('#rabbit').classList.add('hidden');
     }
     const showBar = $('#showcards:not(.hidden) .bar');
@@ -1181,16 +1197,20 @@ export class Hud {
     if (!show) return;
     $('.rv-label', el).textContent = t(`reveal.${rv.next}`);
     this.revealDeadline = performance.now() + rv.remaining;
+    this.revealTotal = rv.total;
   }
 
-  // Rabbit Cam: offer it for 5 seconds, then label the requested cards
+  // Rabbit Cam: offer it for a few seconds (right under the board), then label the requested cards
   #renderRabbit(s) {
     const rb = s.rabbit;
     const offer = !!rb?.open && s.mySeat != null;
     const el = $('#rabbit');
     if (offer && el.classList.contains('hidden')) el.classList.remove('hidden');
     if (!offer) el.classList.add('hidden');
-    if (offer) this.rabbitDeadline = performance.now() + rb.remaining;
+    if (offer) {
+      this.rabbitDeadline = performance.now() + rb.remaining;
+      this.rabbitTotal = rb.total;
+    }
     const show = !!rb?.cards;
     this.rabbitLabel.classList.toggle('hidden', !show);
     if (show) this.rabbitLabel.textContent = `🐇 Rabbit Cam · ${rb.by}`;

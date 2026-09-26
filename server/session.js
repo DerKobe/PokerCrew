@@ -12,11 +12,11 @@ const DELAY = {
   runout: 1800, // all-in runout between streets
   showdown: 6500, // show the result until the next hand
   uncontested: 3200,
-  rabbitWindow: 5000, // how long the Rabbit Cam can be requested
+  rabbitWindow: 6000, // how long the Rabbit Cam can be requested
   rabbitShow: 5000, // how long the Rabbit Cam cards stay on the table
   showWindow: 7000, // uncontested winner: how long they may choose to show their cards
   showStay: 3500, // shown cards stay on the table at least this long
-  revealTimeout: 20_000, // all-in runout: reveal automatically if nobody clicks
+  revealTimeout: 6000, // all-in runout: reveal automatically if nobody clicks
   dramatic: 7500, // pause after a dramatic river before the showdown
   away: 1200, // away players act automatically
   disconnected: 12000,
@@ -789,7 +789,7 @@ export class Session {
       hand: hv,
       reveal:
         this.pendingReveal && this.hand?.handId === this.pendingReveal.handId
-          ? { next: this.pendingReveal.next, remaining: Math.max(0, this.pendingReveal.until - now) }
+          ? { next: this.pendingReveal.next, remaining: Math.max(0, this.pendingReveal.until - now), total: this.delay.revealTimeout }
           : null,
       drama: !!this.hand?.dramaticRiver,
       showOffer:
@@ -798,7 +798,7 @@ export class Session {
           : null,
       rabbit:
         this.rabbit && this.hand && this.rabbit.handId === this.hand.handId
-          ? { open: !this.rabbit.cards && now < this.rabbit.until, remaining: Math.max(0, this.rabbit.until - now), cards: this.rabbit.cards, by: this.rabbit.by }
+          ? { open: !this.rabbit.cards && now < this.rabbit.until, remaining: Math.max(0, this.rabbit.until - now), total: this.delay.rabbitWindow, cards: this.rabbit.cards, by: this.rabbit.by }
           : null,
       turnRemaining: this.actionDeadline ? Math.max(0, this.actionDeadline - now) : 0,
       turnTotal: this.hand?.toAct != null ? this.config.actionSeconds * 1000 : 0,
