@@ -109,8 +109,13 @@ export function seatAnchors(pos, me = pos === 0, count = 5) {
     button: me ? raw(1.2, portrait ? -1.7 : -1.9) : at(1.9, -1.45, 0, 0.55),
     plate: me ? raw(-0.95, 0, 0.6) : raw(-0.75, 0, 0.6),
     ring: me ? raw(portrait ? 1.35 : 0.95, 0, 0.012) : at(1.4, 0, 0.012, 0.8),
-    // trophies stand in a row left of the cards; `offset` = distance along the row
-    trophy: (offset) => (me ? raw(0.5, -1.65 - offset) : at(0.75, -1.55 - offset, 0, 0.45)),
+    // others: the gadget stands on the felt right next to the cards (yours sits on the rail in
+    // front of you, see gadgetAnchor), the trophies follow in a row further left, past the
+    // gadget; `offset` = distance along the row. In portrait your seat is at the narrow end of the
+    // table, so your row moves further in (and stays on the felt)
+    gadget: me ? null : at(0.75, -1.2, 0, 0.45),
+    trophy: (offset) =>
+      me ? (portrait ? at(2.0, -2.3 - offset, 0, 0.5) : raw(0.5, -2.15 - offset)) : at(0.75, -2.0 - offset, 0, 0.45),
   };
 }
 
@@ -143,7 +148,7 @@ function perimeterAt(s, R) {
   return { x: a - s, z: R, nx: 0, nz: 1 };
 }
 
-// Spot for the gadget: on the wooden racetrack, `along` units left of the seat
+// Spot for your own gadget: on the wooden racetrack, `along` units left of your seat
 export function gadgetAnchor(pos, along, count = 5) {
   const { p: w } = seatPoint(pos, count);
   const p = portrait ? { x: -w.z, z: w.x } : w; // back to table coordinates

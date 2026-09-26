@@ -1,6 +1,6 @@
 // Shared tournament configuration (imported by the server and the browser).
 
-export const MAX_SEATS = 10;
+export const MAX_SEATS = 8;
 export const MIN_SEATS = 2;
 export const DEFAULT_SEATS = 5;
 export const DEFAULT_TITLE = 'PokerCrew';
