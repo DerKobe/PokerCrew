@@ -178,6 +178,13 @@ test('Gadgets: chosen in the lobby, locked during the tournament', () => {
   assert.equal(s.seats[2].gadget, 'vape');
   b.send('sit', { seat: 3, name: 'Bea' });
   assert.equal(s.seats[3].gadget, 'vape');
+  // "no gadget" is an explicit choice, in the lobby and when sitting down
+  a.send('gadget', 'none');
+  assert.equal(a.lastState.seats[0].gadget, null);
+  a.send('gadget', 'whiskey');
+  a.send('sit', { seat: 0, name: 'A', gadget: 'none' });
+  assert.equal(s.seats[0].gadget, null);
+  a.send('gadget', 'whiskey');
 
   // A click is relayed to the others (rate-limited)
   a.send('gadget-play');

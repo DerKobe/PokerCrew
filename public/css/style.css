@@ -477,7 +477,7 @@ label input:focus, .blinds input:focus { border-color: var(--gold); }
 .gadget-row { display: grid; gap: 7px; margin-bottom: 22px; }
 .gadget-row .lbl { font-size: 12px; color: var(--muted); font-weight: 600; }
 .gadget-row .lbl em { font-style: normal; font-weight: 500; opacity: 0.75; }
-.gadget-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.gadget-opts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .gadget-opt {
   display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 8px;
   border-radius: 11px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.04);
@@ -660,7 +660,7 @@ body[data-phase='lobby'] #strength { display: none !important; }
   .plate.has-video.zoom .avatar { width: 130px; height: 130px; margin: -50px 0 -50px -8px; }
   .plate .name { max-width: 80px; font-size: 12px; }
   .seatgrid { grid-template-columns: repeat(3, 1fr); }
-  .gadget-opts { grid-template-columns: repeat(2, 1fr); }
+  .gadget-opts { grid-template-columns: repeat(3, 1fr); }
   .row.three { flex-direction: column; }
   .lobby-card { padding: 18px; }
   .potlabel { font-size: 12px; padding: 3px 9px; }
