@@ -26,3 +26,7 @@ npm test
 ```
 
 > Browsers only allow microphone access over **HTTPS** (or on `localhost`), so put a TLS-terminating reverse proxy in front of the app when you host it. `deploy/` contains a Docker Compose + Caddy setup for this.
+
+## License
+
+[MIT](LICENSE)

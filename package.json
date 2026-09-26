@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Self-hosted No-Limit Hold'em tournaments for friends – three.js table + voice chat",
   "main": "server/index.js",
+  "license": "MIT",
+  "author": "Philip Claren",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
