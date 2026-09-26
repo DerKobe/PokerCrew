@@ -4,6 +4,7 @@ import { createDeck, evaluateBest } from '../shared/cards.js';
 import { MAX_SEATS } from '../shared/config.js';
 import { randomInt } from 'node:crypto';
 import { UserError } from './errors.js';
+import { headsUpOdds } from '../shared/odds.js';
 
 export function shuffle(deck) {
   const d = deck.slice();
@@ -318,6 +319,26 @@ export class HandEngine {
     return idx.map((i) => this.player(seat).cards[i]);
   }
 
+  // Heads-up hands turned face up before the river (all-in runout): each hand's chance to win
+  // and the outs of the hand that is behind. Computed once per street. null otherwise.
+  runoutOdds() {
+    const active = this.active;
+    if (this.board.length >= 5 || this.phase === 'complete' || active.length !== 2) return null;
+    if (!active.every((p) => this.revealed.has(p.seat))) return null;
+    const key = `${this.handId}:${this.board.length}`;
+    if (this.oddsCache?.key !== key) {
+      const [a, b] = active;
+      const o = headsUpOdds(a.cards, b.cards, this.board);
+      const seats = {
+        [a.seat]: { win: o.win[0], tie: o.tie },
+        [b.seat]: { win: o.win[1], tie: o.tie },
+      };
+      if (o.outs) seats[active[o.outs.index].seat].outs = o.outs.count;
+      this.oddsCache = { key, seats };
+    }
+    return this.oddsCache.seats;
+  }
+
   // Rabbit Cam: the board cards that would have come (incl. burn cards), without changing the deck
   rabbitCards() {
     const deck = this.deck.slice();
@@ -455,6 +476,7 @@ export class HandEngine {
       toAct: this.toAct,
       players,
       shown: Object.fromEntries(this.shown),
+      odds: this.runoutOdds(),
       legal: viewerSeat != null ? this.legalActions(viewerSeat) : null,
       results: this.results
         ? {

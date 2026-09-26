@@ -413,6 +413,19 @@ body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opa
   padding: 3px 10px; border-radius: 999px;
 }
 
+/* ------------------------------------------------ Runout odds (heads-up all-in) */
+.odds {
+  position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 14px 7px; border-radius: 14px; border: 2px solid var(--gold);
+  background: rgba(10, 11, 13, 0.88); color: var(--gold); white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55); animation: fade-in 0.3s ease-out;
+}
+.odds b { font: 800 30px/1 Inter, sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.odds small { font-weight: 700; font-size: 12.5px; opacity: 0.9; }
+.odds.lead { border-color: #3fca73; color: #7ef0a4; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 18px rgba(63, 202, 115, 0.35); }
+.odds.trail { border-color: #f0734f; color: #ffb199; }
+
 /* ------------------------------------------------ Show cards after an uncontested win */
 /* where the action panel usually sits, so your own cards and plate stay visible */
 #showcards {
@@ -654,6 +667,9 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #showcards { right: auto; left: 50%; transform: translateX(-50%); bottom: max(128px, 36vh); }
   #voice .mic-btn span { display: none; }
   #strength { font-size: 13px; padding: 4px 12px; }
+  .odds { padding: 4px 10px 5px; }
+  .odds b { font-size: 22px; }
+  .odds small { font-size: 11px; }
   .plate { min-width: 0; padding: 4px 10px 4px 4px; gap: 6px; }
   .plate .avatar { width: 34px; height: 34px; font-size: 12px; }
   .plate.has-video .avatar { width: 56px; height: 56px; margin: -14px 0 -14px -4px; }

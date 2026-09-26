@@ -120,7 +120,7 @@ const DICT = {
   de: {
     lang: { label: 'Sprache' },
     splash: {
-      tagline: "No-Limit Texas Hold'em mit deinen Freunden – inklusive Voicechat.",
+      tagline: "No-Limit Texas Hold'em mit deinen Freunden.",
       enter: 'An den Tisch',
       fine: 'Beim Betreten wirst du automatisch mit dem Voicechat verbunden. Dein Browser fragt nach dem Mikrofon – stummschalten kannst du jederzeit (Taste <kbd>M</kbd>).',
     },
@@ -263,6 +263,7 @@ const DICT = {
     },
     reveal: { flop: 'Flop aufdecken', turn: 'Turn aufdecken', river: 'River aufdecken' },
     show: { title: 'Karten zeigen?', both: 'Beide' },
+    odds: { outs: (p) => `${p.n} ${p.n === 1 ? 'Out' : 'Outs'}`, split: (p) => `Split ${p.p}%` },
     banner: {
       wins: 'gewinnt',
       split: 'teilen',
@@ -345,7 +346,7 @@ const DICT = {
   en: {
     lang: { label: 'Language' },
     splash: {
-      tagline: "No-Limit Texas Hold'em with your friends – voice chat included.",
+      tagline: "No-Limit Texas Hold'em with your friends.",
       enter: 'Take a seat',
       fine: 'You join the voice chat automatically when you enter. Your browser will ask for the microphone – you can mute yourself any time (key <kbd>M</kbd>).',
     },
@@ -488,6 +489,7 @@ const DICT = {
     },
     reveal: { flop: 'Reveal the flop', turn: 'Reveal the turn', river: 'Reveal the river' },
     show: { title: 'Show your cards?', both: 'Both' },
+    odds: { outs: (p) => `${p.n} ${p.n === 1 ? 'out' : 'outs'}`, split: (p) => `Split ${p.p}%` },
     banner: {
       wins: 'wins',
       split: 'split',

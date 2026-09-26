@@ -134,6 +134,8 @@ export class TableView {
       this.drama = !!state.drama;
       await this.#syncBoard(h);
       await this.#syncReveals(h);
+      // board and revealed hands are in place (the HUD shows the runout odds only then)
+      this.settled = { hand: h.id, board: h.board.length };
       if (h.results && !this.resultsShown) await this.#showResults(state);
       await this.#syncRabbit(state);
       this.#syncStacks(state);
@@ -150,6 +152,7 @@ export class TableView {
   async #newHand(state) {
     const h = state.hand;
     this.ownCardsUp = null;
+    this.settled = null;
     await this.#collectCards();
     this.#clearBets();
     this.#setPot(0);
@@ -612,6 +615,7 @@ export class TableView {
 
   #clearAll() {
     this.ownCardsUp = null;
+    this.settled = null;
     for (const c of [...this.board, ...this.seats.flatMap((s) => s.cards)]) this.scene.remove(c);
     this.board = [];
     for (const s of this.seats) {

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { evaluateBest, evaluate5 } from '../shared/cards.js';
 import { HandEngine } from '../server/engine.js';
 import { trophiesFor } from '../server/trophies.js';
+import { fastScore } from '../shared/odds.js';
+import { createDeck, rankValue } from '../shared/cards.js';
 
 const score = (s) => evaluateBest(s.split(' ')).score;
 
@@ -283,3 +285,54 @@ function checkDown(h) {
     } else h.advance();
   }
 }
+
+test('Runout odds: heads-up all-in shows each hand\'s chance and the outs of the hand behind', () => {
+  // dealing starts left of the button: seat 1 gets A-K, seat 0 9h 8h.
+  // Flop Ah 4h 7c (top pair vs flush draw), turn Jc, river Qs
+  const h = new HandEngine({
+    players: [{ seat: 0, stack: 1000 }, { seat: 1, stack: 1000 }], buttonSeat: 0, sb: 10, bb: 20,
+    deck: stackedDeck(['As', '9h', 'Kd', '8h', '2c', 'Ah', '4h', '7c', '3d', 'Jc', '5s', 'Qs']),
+  });
+  assert.equal(h.view(null).odds, null, 'no odds while the hands are hidden');
+  h.act(0, 'allin');
+  h.act(1, 'call');
+  const pre = h.view(null).odds;
+  assert.ok(pre[1].win > pre[0].win, 'A-K is ahead preflop');
+  assert.ok(Math.abs(pre[0].win + pre[1].win + pre[0].tie - 1) < 1e-9);
+  assert.equal(pre[0].outs, undefined, 'no outs before the flop');
+  assert.equal(pre[1].outs, undefined);
+  h.advance(); // flop: nine hearts give seat 0 the flush
+  const flop = h.view(1).odds;
+  assert.equal(flop[0].outs, 9);
+  assert.equal(flop[1].outs, undefined, 'only the hand behind has outs');
+  // the nine flush outs over two cards, plus backdoor straights
+  assert.ok(flop[0].win > 1 - (36 / 45) * (35 / 44) && flop[0].win < 0.45);
+  assert.ok(Math.abs(flop[0].win + flop[1].win + flop[0].tie - 1) < 1e-9);
+  h.advance(); // turn Jc: hearts plus the three other tens (7-8-9-T-J)
+  assert.equal(h.view(0).odds[0].outs, 12);
+  assert.ok(Math.abs(h.view(0).odds[0].win - 12 / 44) < 1e-9);
+  h.advance(); // river: nothing left to calculate
+  assert.equal(h.view(0).odds, null);
+});
+
+test('Runout odds: only heads-up', () => {
+  const h = new HandEngine({ players: [0, 1, 2].map((seat) => ({ seat, stack: 1000 })), buttonSeat: 0, sb: 10, bb: 20 });
+  h.act(h.toAct, 'allin');
+  h.act(h.toAct, 'call');
+  h.act(h.toAct, 'call');
+  assert.equal(h.active.length, 3);
+  assert.equal(h.view(null).odds, null, 'three hands: no odds');
+});
+
+test('Fast evaluator (odds) scores exactly like evaluateBest', () => {
+  const suit = { s: 0, h: 1, d: 2, c: 3 };
+  for (let n = 0; n < 20000; n++) {
+    const deck = createDeck();
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    const cards = deck.slice(0, 5 + (n % 3));
+    assert.equal(fastScore(cards.map((c) => [rankValue(c), suit[c[1]]])), evaluateBest(cards).score, cards.join(' '));
+  }
+});

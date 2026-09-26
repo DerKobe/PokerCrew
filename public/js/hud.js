@@ -1,6 +1,7 @@
 // HTML interface on top of the 3D scene.
 import * as THREE from 'three';
-import { MAX_SEATS, POT_POS, BELOW_BOARD, tableToWorld, isPortrait } from './scene.js';
+import { MAX_SEATS, POT_POS, BELOW_BOARD, BOARD_POS, tableToWorld, isPortrait, boardScale } from './scene.js';
+import { CARD_W, CARD_H } from './cards.js';
 import { MIN_SEATS, DEFAULT_TITLE, TITLE_MAX, FELTS, RIMS, CARD_BACKS } from '/shared/config.js';
 import { cardBackPreview } from './textures.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
@@ -758,6 +759,7 @@ export class Hud {
     const v = new THREE.Vector3();
     const W = window.innerWidth;
     const H = window.innerHeight;
+    this.#placeOdds(v, W, H);
     // Hand strength: on the bottom edge of your own cards, only after they were dealt and turned up
     const strength = $('#strength');
     const st = this.strength;
@@ -795,6 +797,101 @@ export class Hud {
       const off = isPortrait() ? new THREE.Vector3(0, 0, -0.9) : tableToWorld(0, 0, -1.05);
       const b = this.stage.project(POT_POS().add(off), v);
       this.potLabel.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%)`;
+    }
+  }
+
+  // Heads-up all-in before the river: each hand's chance to win (and the outs of the hand behind)
+  // in a big badge beside its cards. Shown once the board and the hands lie on the table.
+  #placeOdds(v, W, H) {
+    const h = this.state.hand;
+    const odds = h?.odds;
+    const settled = this.view.settled;
+    const show = !!odds && settled?.hand === h.id && settled.board === h.board.length;
+    this.oddsEls ??= new Map();
+    for (const [seat, el] of this.oddsEls) if (!show || !odds[seat]) el.classList.add('hidden');
+    if (!show) return;
+    const seats = Object.keys(odds).map(Number);
+    const box = (pts) => {
+      const r = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      for (const p of pts) {
+        const s = this.stage.project(p, v);
+        r.x0 = Math.min(r.x0, s.x);
+        r.y0 = Math.min(r.y0, s.y);
+        r.x1 = Math.max(r.x1, s.x);
+        r.y1 = Math.max(r.y1, s.y);
+      }
+      return r;
+    };
+    const corners = (b) => {
+      const out = [];
+      for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) out.push(new THREE.Vector3(x, y, z));
+      return out;
+    };
+    // what a badge must not cover: the board, name plates, pot label, the reveal button
+    const sc = boardScale();
+    const boardPts = [];
+    for (let i = 0; i < 5; i++) {
+      const c = BOARD_POS(i);
+      for (const dx of [-0.55, 0.55]) for (const dz of [-0.75, 0.75]) boardPts.push(c.clone().add(new THREE.Vector3(dx * sc * CARD_W, 0, dz * sc * CARD_H / 1.4)));
+    }
+    const avoid = [box(boardPts)];
+    const rectOf = (el) => {
+      const r = el.getBoundingClientRect();
+      return { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
+    };
+    for (const p of this.plates) if (!p.el.classList.contains('hidden')) avoid.push(rectOf(p.el));
+    for (const el of [this.potLabel, $('#reveal'), $('#strength')]) if (el && !el.classList.contains('hidden')) avoid.push(rectOf(el));
+    const hits = (r) => avoid.some((a) => r.x0 < a.x1 && r.x1 > a.x0 && r.y0 < a.y1 && r.y1 > a.y0);
+    const ranked = seats.map((s) => odds[s].win).sort((a, b) => b - a);
+    for (const seat of seats) {
+      const o = odds[seat];
+      let el = this.oddsEls.get(seat);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'odds hidden';
+        $('#plates').appendChild(el);
+        this.oddsEls.set(seat, el);
+      }
+      const pct = (x) => (x > 0 && x < 0.005 ? '<1' : x < 1 && x > 0.995 ? '>99' : String(Math.round(x * 100)));
+      const kind = ranked[0] === ranked[1] ? 'even' : o.win === ranked[0] ? 'lead' : 'trail';
+      const key = `${h.id}:${h.board.length}:${getLang()}`;
+      if (el.dataset.key !== key) {
+        el.dataset.key = key;
+        el.className = `odds ${kind}`;
+        el.innerHTML = `<b>${pct(o.win)}%</b>${o.outs != null ? `<small>${t('odds.outs', { n: o.outs })}</small>` : ''}${o.tie >= 0.01 ? `<small>${t('odds.split', { p: pct(o.tie) })}</small>` : ''}`;
+      }
+      el.classList.remove('hidden');
+      const cards = this.view.seats[seat]?.cards || [];
+      if (!cards.length) continue;
+      const cb = box(cards.flatMap((c) => corners(new THREE.Box3().setFromObject(c))));
+      const w = el.offsetWidth;
+      const hgt = el.offsetHeight;
+      const cx = (cb.x0 + cb.x1) / 2;
+      const cy = (cb.y0 + cb.y1) / 2;
+      const gap = 10;
+      const at = {
+        right: [cb.x1 + gap, cy - hgt / 2],
+        left: [cb.x0 - gap - w, cy - hgt / 2],
+        below: [cx - w / 2, cb.y1 + gap],
+        above: [cx - w / 2, cb.y0 - gap - hgt],
+      };
+      // prefer the side facing the middle of the screen
+      const horiz = cx < W / 2 ? ['right', 'left'] : ['left', 'right'];
+      const vert = cy < H / 2 ? ['below', 'above'] : ['above', 'below'];
+      let pick = null;
+      for (const side of [...horiz, ...vert]) {
+        let [x, y] = at[side];
+        x = Math.min(W - w - 8, Math.max(8, x));
+        y = Math.min(H - hgt - 8, Math.max(8, y));
+        const r = { x0: x, y0: y, x1: x + w, y1: y + hgt };
+        if (!pick) pick = r;
+        if (!hits(r)) {
+          pick = r;
+          break;
+        }
+      }
+      avoid.push(pick); // the other badge must not land on this one
+      el.style.transform = `translate(${pick.x0}px, ${pick.y0}px)`;
     }
   }
 
