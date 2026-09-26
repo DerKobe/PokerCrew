@@ -125,6 +125,34 @@ kbd {
 .menu button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 9px 12px; border-radius: 8px; }
 .menu button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
 
+/* Personal settings panel (⋮ → Settings) */
+#settings {
+  position: fixed; top: 64px; right: 16px; z-index: 40; width: min(340px, calc(100vw - 32px));
+  background: var(--glass-2); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px 12px;
+  backdrop-filter: blur(12px); box-shadow: var(--shadow); animation: pop 0.2s ease-out;
+}
+#settings .set-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+#settings h3 { margin: 0; font: italic 700 19px var(--serif); color: var(--gold); }
+#settings .set-close { background: none; border: 0; color: var(--muted); font-size: 16px; padding: 4px 6px; border-radius: 8px; }
+#settings .set-close:hover { background: rgba(255, 255, 255, 0.08); color: inherit; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); cursor: pointer; }
+.set-row span { display: flex; flex-direction: column; gap: 2px; }
+.set-row b { font-weight: 700; font-size: 14px; }
+.set-row small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.set-note { margin: 6px 0 0; font-size: 11.5px; color: var(--muted); }
+/* on/off switch */
+input.switch {
+  appearance: none; flex: none; position: relative; width: 42px; height: 24px; margin: 0; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.18); transition: background 0.2s, border-color 0.2s;
+}
+input.switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%;
+  background: #e9e4d8; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transition: transform 0.2s;
+}
+input.switch:checked { background: rgba(230, 196, 106, 0.55); border-color: var(--gold); }
+input.switch:checked::after { transform: translateX(18px); background: #fff7df; }
+input.switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
 /* ------------------------------------------------ Nameplates */
 #plates { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 .plate {

@@ -161,6 +161,7 @@ export class Trophies {
     this.pending = [];
     this.state = null;
     this.first = true;
+    this.visible = true; // personal setting
     this.raycaster = new THREE.Raycaster();
     this.ndc = new THREE.Vector2();
     this.tip = document.createElement('div');
@@ -251,6 +252,7 @@ export class Trophies {
       );
       hit.position.y = 0.2;
       obj.add(hit);
+      obj.visible = this.visible;
       slot = { seat, kind, obj, hit, count: 0 };
       hit.userData.slot = slot;
       this.slots.set(key, slot);
@@ -258,7 +260,7 @@ export class Trophies {
     }
     slot.count++;
     this.#placeSeat(seat);
-    if (!animate) return;
+    if (!animate || !this.visible) return;
     // pop in (or grow) with a little golden sparkle and a chime
     const obj = slot.obj;
     const to = this.#scaleFor(slot.count);
@@ -317,7 +319,15 @@ export class Trophies {
     });
   }
 
+  // Show / hide all trophies – a personal setting
+  setVisible(on) {
+    this.visible = on;
+    for (const sl of this.slots.values()) sl.obj.visible = on;
+    if (!on) this.#hideTip();
+  }
+
   #hover(e) {
+    if (!this.visible) return;
     const now = performance.now();
     if (now - (this.lastHover || 0) < 50) return;
     this.lastHover = now;

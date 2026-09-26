@@ -7,6 +7,7 @@ import { cardBackPreview } from './textures.js';
 import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config.js';
 import { GADGETS, GADGET_CHOICES, NO_GADGET, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
+import { prefs, setPref } from './prefs.js';
 import { t, fmt, fmtMin, clock, describeHand, describeHole, langPicker, applyStatic, onLangChange, getLang } from './i18n.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -163,6 +164,7 @@ export class Hud {
         <button class="icon" id="btn-sfx" data-i18n-title="top.sfx">${ICON.bell}</button>
         <button class="icon" id="btn-menu" data-i18n-title="top.menu">${ICON.menu}</button>
         <div class="menu hidden" id="menu">
+          <button id="btn-settings" data-i18n="top.settings"></button>
           <button id="btn-abort" data-i18n="top.abort"></button>
           <button id="btn-full" data-i18n="top.fullscreen"></button>
         </div>
@@ -198,6 +200,39 @@ export class Hud {
       if (document.fullscreenElement) document.exitFullscreen();
       else document.documentElement.requestFullscreen?.();
     };
+
+    // Personal settings (⋮ → Settings), stored in this browser
+    const settings = document.createElement('div');
+    settings.id = 'settings';
+    settings.className = 'hidden';
+    settings.setAttribute('role', 'dialog');
+    settings.setAttribute('aria-labelledby', 'settings-title');
+    const row = (key) => `
+      <label class="set-row">
+        <span><b data-i18n="settings.${key}"></b><small data-i18n="settings.${key}Hint"></small></span>
+        <input type="checkbox" class="switch" data-pref="${key}">
+      </label>`;
+    settings.innerHTML = `
+      <div class="set-head"><h3 id="settings-title" data-i18n="settings.title"></h3><button class="set-close" data-i18n-title="settings.close">✕</button></div>
+      ${row('gadgets')}${row('trophies')}${row('noTopple')}
+      <p class="set-note" data-i18n="settings.note"></p>`;
+    document.body.appendChild(settings);
+    settings.querySelectorAll('[data-pref]').forEach((inp) => {
+      inp.checked = prefs[inp.dataset.pref];
+      inp.onchange = () => setPref(inp.dataset.pref, inp.checked);
+    });
+    const closeSettings = () => settings.classList.add('hidden');
+    $('#btn-settings').onclick = (e) => {
+      e.stopPropagation();
+      $('#menu').classList.add('hidden');
+      settings.classList.toggle('hidden');
+    };
+    settings.querySelector('.set-close').onclick = closeSettings;
+    settings.addEventListener('click', (e) => e.stopPropagation());
+    document.addEventListener('click', closeSettings);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSettings();
+    });
 
     // Voice
     $('#voice').innerHTML = `
@@ -644,7 +679,7 @@ export class Hud {
       localStorage.setItem('pc.fidgetHint', '1');
       setTimeout(() => this.toast(t('tip.fidget')), 4000);
     }
-    if (s.phase === 'running' && s.mySeat != null && s.seats[s.mySeat]?.gadget && !localStorage.getItem('pc.gadgetHint')) {
+    if (s.phase === 'running' && s.mySeat != null && s.seats[s.mySeat]?.gadget && prefs.gadgets && !localStorage.getItem('pc.gadgetHint')) {
       localStorage.setItem('pc.gadgetHint', '1');
       setTimeout(() => this.toast(t('tip.gadget')), 12000);
     }
