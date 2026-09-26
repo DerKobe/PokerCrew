@@ -394,9 +394,10 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 #banner .hn { font: italic 700 18px var(--serif); color: var(--gold); margin-top: 2px; }
 
 /* ------------------------------------------------ All-in runout */
+/* positioned every frame right under the community cards, like the Rabbit Cam button (hud.js) */
 #reveal {
-  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 17;
-  animation: pop-centered 0.2s ease-out;
+  position: fixed; left: 0; top: 0; z-index: 17;
+  animation: fade-in 0.2s ease-out;
 }
 #reveal button {
   position: relative; overflow: hidden;
@@ -716,7 +717,6 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #log.open { width: min(320px, calc(100vw - 32px)); }
   #actions { left: 8px; right: 8px; bottom: 8px; width: auto; transform: none; animation-name: pop; }
   #actions.waiting { left: auto; right: 16px; bottom: 16px; }
-  #reveal { bottom: 72px; }
   #showcards { bottom: max(128px, 36vh); }
   #voice .mic-btn span { display: none; }
   #strength { font-size: 13px; padding: 4px 12px; }

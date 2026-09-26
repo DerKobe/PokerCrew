@@ -803,14 +803,18 @@ export class Hud {
     const v = new THREE.Vector3();
     const W = window.innerWidth;
     const H = window.innerHeight;
+    // Reveal button (all-in runout) and Rabbit Cam button: right under the community cards.
+    // The reveal button is placed first, so the odds badges can keep clear of it.
+    const underBoard = this.stage.project(BELOW_BOARD(), v);
+    const underBoardAt = `translate(${underBoard.x}px, ${underBoard.y}px) translate(-50%, -25%)`;
+    const reveal = $('#reveal');
+    if (!reveal.classList.contains('hidden')) reveal.style.transform = underBoardAt;
     this.#placeOdds(v, W, H);
-    // Rabbit Cam button: right under the community cards
     const rabbit = $('#rabbit');
     const showPanel = $('#showcards');
     showPanel.style.bottom = '';
     if (!rabbit.classList.contains('hidden')) {
-      const b = this.stage.project(BELOW_BOARD(), v);
-      rabbit.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -25%)`;
+      rabbit.style.transform = underBoardAt;
       // on phones both offers can meet in the middle: the show-cards panel moves below the button
       if (!showPanel.classList.contains('hidden')) {
         const r = rabbit.getBoundingClientRect();
