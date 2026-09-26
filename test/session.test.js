@@ -193,30 +193,30 @@ test('Gadgets: chosen in the lobby, locked during the tournament', () => {
   s.close();
 });
 
-test('Seat count: configurable 2-10, never below the seated players', () => {
+test('Seat count: configurable 2-8, never below the seated players', () => {
   const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, away: 1 } });
   const socks = [0, 1, 2].map((i) => new FakeSocket(`c${i}`, `token-count-${i}`));
   for (const so of socks) s.connect(so);
   // anyone in the lobby may pick the seat count, the rest of the structure needs a seat
-  socks[0].send('seats', 10);
-  assert.equal(socks[0].lastState.seats.length, 10);
+  socks[0].send('seats', 8);
+  assert.equal(socks[0].lastState.seats.length, 8);
   socks[0].send('config', { startingStack: 500 });
   assert.equal(s.config.startingStack, 10000, 'spectators cannot change the structure');
   socks[0].send('sit', { seat: 0, name: 'A' });
-  socks[1].send('sit', { seat: 9, name: 'B' });
-  socks[2].send('sit', { seat: 7, name: 'C' });
+  socks[1].send('sit', { seat: 7, name: 'B' });
+  socks[2].send('sit', { seat: 5, name: 'C' });
   // shrinking moves B and C onto free seats instead of dropping them
   socks[1].send('seats', 2);
   assert.equal(s.config.seats, 3, 'not below the 3 seated players');
   assert.deepEqual(socks[0].lastState.seats.map((x) => x?.name).sort(), ['A', 'B', 'C']);
   socks[0].send('config', { seats: 99 });
-  assert.equal(s.config.seats, 10);
-  socks[1].send('sit', { seat: 10, name: 'B' });
+  assert.equal(s.config.seats, 8);
+  socks[1].send('sit', { seat: 8, name: 'B' });
   assert.ok(socks[1].received.some(([ev, d]) => ev === 'toast' && d.key === 'err.invalidSeat'));
   socks[0].send('start');
   socks[0].send('seats', 4);
   s.close();
-  assert.equal(s.config.seats, 10, 'locked once the tournament runs');
+  assert.equal(s.config.seats, 8, 'locked once the tournament runs');
 });
 
 test('Late registration: free seat while nobody has busted, dealt in from the next hand', async () => {

@@ -79,8 +79,6 @@ kbd {
 .icon:hover { background: rgba(255, 255, 255, 0.12); }
 .icon svg { width: 19px; height: 19px; fill: currentColor; }
 .icon.off { color: var(--red); }
-.menu .mobile-only { display: none; }
-#btn-fix.on { color: var(--gold); background: rgba(230, 196, 106, 0.16); border-color: rgba(230, 196, 106, 0.45); }
 
 /* ------------------------------------------------ Top bar */
 #topbar {
@@ -644,8 +642,6 @@ body[data-phase='lobby'] #strength { display: none !important; }
   body { font-size: 13px; }
   .brand { display: none; }
   #topbar { padding: 8px; gap: 8px; }
-  #btn-fix { display: none; }
-  .menu .mobile-only { display: block; }
   .levelinfo { padding: 5px 12px; gap: 8px; font-size: 12px; }
   .levelinfo .hand-no { display: none; }
   #voice { top: auto; bottom: 16px; left: 16px; right: auto; width: auto; min-width: 0; padding: 6px; }

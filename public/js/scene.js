@@ -109,8 +109,13 @@ export function seatAnchors(pos, me = pos === 0, count = 5) {
     button: me ? raw(1.2, portrait ? -1.7 : -1.9) : at(1.9, -1.45, 0, 0.55),
     plate: me ? raw(-0.95, 0, 0.6) : raw(-0.75, 0, 0.6),
     ring: me ? raw(portrait ? 1.35 : 0.95, 0, 0.012) : at(1.4, 0, 0.012, 0.8),
-    // trophies stand in a row left of the cards; `offset` = distance along the row
-    trophy: (offset) => (me ? raw(0.5, -1.65 - offset) : at(0.75, -1.55 - offset, 0, 0.45)),
+    // others: the gadget stands on the felt right next to the cards (yours sits on the rail in
+    // front of you, see gadgetAnchor), the trophies follow in a row further left, past the
+    // gadget; `offset` = distance along the row. In portrait your seat is at the narrow end of the
+    // table, so your row moves further in (and stays on the felt)
+    gadget: me ? null : at(0.75, -1.2, 0, 0.45),
+    trophy: (offset) =>
+      me ? (portrait ? at(2.0, -2.3 - offset, 0, 0.5) : raw(0.5, -2.15 - offset)) : at(0.75, -2.0 - offset, 0, 0.45),
   };
 }
 
@@ -143,7 +148,7 @@ function perimeterAt(s, R) {
   return { x: a - s, z: R, nx: 0, nz: 1 };
 }
 
-// Spot for the gadget: on the wooden racetrack, `along` units left of the seat
+// Spot for your own gadget: on the wooden racetrack, `along` units left of your seat
 export function gadgetAnchor(pos, along, count = 5) {
   const { p: w } = seatPoint(pos, count);
   const p = portrait ? { x: -w.z, z: w.x } : w; // back to table coordinates
@@ -155,7 +160,6 @@ export function gadgetAnchor(pos, along, count = 5) {
 
 // Table-fixed points (board, pot, deck) are defined in table coordinates and rotate with the
 // table in portrait – like a real table seen from its short end.
-const ZERO2 = new THREE.Vector2();
 
 export const tableYaw = () => (portrait ? Math.PI / 2 : 0);
 export function tableToWorld(x, y, z) {
@@ -216,14 +220,12 @@ export class Stage {
 
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 120);
     this.target = new THREE.Vector3(0, 0, 0.7);
-    this.mouse = new THREE.Vector2();
-    this.smoothMouse = new THREE.Vector2();
     this.idle = true;
     this.feltTitle = 'PokerCrew';
     this.feltColor = 'green';
     this.rimKind = 'wood'; // material of the ring around the felt (this.rim is the rim light)
-    this.fixed = false;
-    this.motionK = 1;
+    // the OS "reduce motion" setting turns off the idle sway and the dramatic river zoom
+    this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
     this.#lights();
     this.#table();
@@ -240,9 +242,6 @@ export class Stage {
     window.addEventListener('resize', onResize);
     window.visualViewport?.addEventListener('resize', onResize);
     if (window.ResizeObserver) new ResizeObserver(onResize).observe(container);
-    window.addEventListener('pointermove', (e) => {
-      this.mouse.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
-    });
     this.resize();
     this.timer = new THREE.Timer();
     renderer.setAnimationLoop(() => this.#frame());
@@ -527,21 +526,14 @@ export class Stage {
     this.timer.update();
     const t = this.timer.getElapsed();
     updateTweens();
-    // "Fixed table" (fixed = true): no parallax, no idle sway, no camera move for the dramatic
-    // river. motionK eases between 0 and 1 so switching does not jump.
-    this.motionK += ((this.fixed ? 0 : 1) - this.motionK) * 0.06;
-    // While riffling chips the camera should not follow the mouse
-    if (!this.freezeParallax) this.smoothMouse.lerp(this.fixed ? ZERO2 : this.mouse, 0.04);
-    // Camera: slightly tilted top view, subtle parallax, gentle sway when idle
-    // Drama focus (dramatic river): the camera moves closer and lower towards a point
-    const f = ease.inOutCubic(this.focusK || 0) * this.motionK;
-    const elev = this.elevation - f * 0.13;
+    // Camera: fixed, slightly tilted top view – it does not follow the mouse. It only moves for
+    // the dramatic river (closer and lower towards a point) and sways gently while idle.
+    const motion = this.reducedMotion.matches ? 0 : 1;
+    const f = ease.inOutCubic(this.focusK || 0) * motion;
+    const e = this.elevation - f * 0.13;
     const d = this.baseDist * (1 - f * 0.42);
     const target = this.focusK ? this.target.clone().lerp(this.focusPoint, f) : this.target;
-    const sway = this.idle ? Math.sin(t * 0.15) * 0.12 * this.motionK : 0;
-    const yawOff = this.smoothMouse.x * 0.05 + sway;
-    const pitchOff = this.smoothMouse.y * 0.025;
-    const e = elev + pitchOff;
+    const yawOff = this.idle ? Math.sin(t * 0.15) * 0.12 * motion : 0;
     if (this.debugCam) {
       // development only (?debug): fixed camera for close-ups
       this.camera.position.copy(this.debugCam.pos);

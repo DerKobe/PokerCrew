@@ -2,7 +2,7 @@
 // plays an animation that everyone at the table sees and (more quietly) hears.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { gadgetAnchor, MAX_SEATS } from './scene.js';
+import { gadgetAnchor, seatAnchors, MAX_SEATS, isPortrait } from './scene.js';
 import { rng } from './textures.js';
 import { tween, ease } from './tween.js';
 import { sfx } from './sound.js';
@@ -888,7 +888,14 @@ export class Gadgets {
   #place(i) {
     const me = this.mySeat != null && this.mySeat === i;
     const pos = (i - (this.mySeat ?? 0) + this.n) % this.n;
-    const a = gadgetAnchor(pos, me ? 2.45 : 1.9, this.n);
+    // yours: on the rail in front of you, right next to your cards (larger in portrait);
+    // everybody else's: on the felt next to their cards, where no name plate covers it
+    let a;
+    if (me) a = gadgetAnchor(pos, isPortrait() ? 2.0 : 1.4, this.n);
+    else {
+      const A = seatAnchors(pos, false, this.n);
+      a = { pos: A.gadget, yaw: A.yaw };
+    }
     const g = this.items[i].group;
     g.scale.setScalar(GADGET_SCALE);
     g.position.copy(a.pos);
