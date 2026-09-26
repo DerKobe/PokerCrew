@@ -62,3 +62,19 @@ export function evaluateBest(cards) {
   }
   return best;
 }
+
+// Your part in a showdown with a complete board: 'win' (the only best hand), 'split' (sharing
+// the best hand), 'lose' (still in, but beaten) or 'watch' (folded, not in the hand, or the
+// other hands are not known). players: { seat: { cards, folded } } as in the hand view.
+export function showdownRole(players, board, seat) {
+  const mine = players[seat];
+  if (!mine?.cards || mine.folded) return 'watch';
+  const scores = Object.entries(players)
+    .filter(([, p]) => !p.folded && p.cards?.every(Boolean))
+    .map(([s, p]) => ({ seat: Number(s), score: evaluateBest([...p.cards, ...board]).score }));
+  const my = scores.find((x) => x.seat === Number(seat))?.score;
+  if (scores.length < 2 || my == null) return 'watch';
+  const best = Math.max(...scores.map((x) => x.score));
+  if (my < best) return 'lose';
+  return scores.filter((x) => x.score === best).length === 1 ? 'win' : 'split';
+}

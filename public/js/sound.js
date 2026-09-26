@@ -125,6 +125,38 @@ function brass(t, freq, dur, { gain = 0.1, bright = 2600, attack = 0.03, vibrato
   }
 }
 
+// A coin landing: a few inharmonic metallic partials plus a click, placed left or right
+// (pan -1..1)
+function coin(t, pan, pitch = 1, gain = 0.12) {
+  const out = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+  if (out.pan) out.pan.value = pan;
+  out.connect(master);
+  [2093, 3150, 4710, 6280].forEach((f, i) => {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = f * pitch;
+    const g = ctx.createGain();
+    const dur = 0.9 - i * 0.18;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain / (i + 1), t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(out);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  });
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuf;
+  const f = ctx.createBiquadFilter();
+  f.type = 'highpass';
+  f.frequency.value = 5000;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(gain * 0.8, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  src.connect(f).connect(g).connect(out);
+  src.start(t, Math.random() * 0.3);
+  src.stop(t + 0.06);
+}
+
 export const sfx = {
   muted: false,
   enabled: true,
@@ -183,6 +215,18 @@ export const sfx = {
     brass(t + 0.48, 277.18, 0.42, { gain: 0.11, wah: true });
     // the last one gets louder, flaps its mute and sags in pitch
     brass(t + 0.96, 261.63, 1.7, { gain: 0.09, swellTo: 0.14, wah: true, wobble: 700, vibrato: 4, bend: 9 });
+  },
+  // Dramatic river ends in a split pot: one coin to the left, one to the right, then an open
+  // chord that neither triumphs nor mourns
+  splitPot() {
+    if (!this.ok) return;
+    const t = ctx.currentTime;
+    coin(t, -0.85, 1);
+    coin(t + 0.16, 0.85, 1.06);
+    const c = t + 0.42;
+    // Csus2 over G: bright, but unresolved
+    [196, 261.63, 293.66, 392].forEach((f, i) => tone(c + i * 0.05, f, 1.5, { type: 'triangle', gain: 0.06, attack: 0.04 }));
+    tone(c + 0.25, 587.33, 1.1, { type: 'sine', gain: 0.035, attack: 0.08 });
   },
   // Trophy earned: short rising chime with a sparkle on top
   trophy() {

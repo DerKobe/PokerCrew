@@ -5,7 +5,7 @@ import { buildStack } from './chips.js';
 import { seatAnchors, BOARD_POS, BOARD_CENTER, POT_POS, DECK_POS, MAX_SEATS, tableYaw, tableToWorld, boardScale, ownCardScale } from './scene.js';
 import { tween, ease, wait, setSpeed, finishAllTweens } from './tween.js';
 import { sfx } from './sound.js';
-import { evaluateBest } from '/shared/cards.js';
+import { showdownRole } from '/shared/cards.js';
 
 const _q = new THREE.Quaternion();
 
@@ -318,10 +318,11 @@ export class TableView {
       beating = false;
       sfx.flip();
       // the ending depends on your part in it: fanfare for the winner, sad trombone for the
-      // loser, the usual sting for everybody watching (folded, spectating or a split)
-      const role = this.#riverRole(h);
+      // loser, split coins when you share the pot, the usual sting for everybody watching
+      const role = this.mySeat != null && h.board.length === 5 ? showdownRole(h.players, h.board, this.mySeat) : 'watch';
       if (role === 'win') sfx.fanfare();
       else if (role === 'lose') sfx.sadTrombone();
+      else if (role === 'split') sfx.splitPot();
       else sfx.sting();
       card.userData.setHighlight('win');
       await this.#fly(card, slot, up, sc, { duration: 280, arc: 0 });
@@ -333,23 +334,6 @@ export class TableView {
       beating = false;
       await this.stage.drama(false);
     }
-  }
-
-  // Your part in the dramatic river: 'win' (your hand is the only best one), 'lose' (still in,
-  // but beaten) or 'watch' (folded, spectating, or a split). All hands are face up by then.
-  #riverRole(h) {
-    const me = this.mySeat;
-    const mine = me != null ? h.players[me] : null;
-    if (!mine?.cards || mine.folded || h.board.length < 5) return 'watch';
-    const scores = Object.entries(h.players)
-      .filter(([, p]) => !p.folded && p.cards?.every(Boolean))
-      .map(([seat, p]) => ({ seat: Number(seat), score: evaluateBest([...p.cards, ...h.board]).score }));
-    if (scores.length < 2) return 'watch';
-    const best = Math.max(...scores.map((x) => x.score));
-    const my = scores.find((x) => x.seat === me)?.score;
-    if (my == null) return 'watch';
-    if (my < best) return 'lose';
-    return scores.filter((x) => x.score === best).length === 1 ? 'win' : 'watch';
   }
 
   async #syncBoard(h) {
