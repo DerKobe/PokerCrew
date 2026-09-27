@@ -216,7 +216,7 @@ export class Hud {
       </label>`;
     settings.innerHTML = `
       <div class="set-head"><h3 id="settings-title" data-i18n="settings.title"></h3><button class="set-close" data-i18n-title="settings.close">✕</button></div>
-      ${row('bigCards')}${row('gadgets')}${row('trophies')}${row('noTopple')}
+      ${row('bigCards')}${row('fourColor')}${row('gadgets')}${row('trophies')}${row('noTopple')}
       <p class="set-note" data-i18n="settings.note"></p>`;
     document.body.appendChild(settings);
     settings.querySelectorAll('[data-pref]').forEach((inp) => {
@@ -1309,7 +1309,7 @@ export class Hud {
     const key = `${s.hand.id}:${getLang()}`;
     if (el.dataset.key === key) return;
     el.dataset.key = key;
-    const mini = (c) => `<span class="mini ${'hd'.includes(c[1]) ? 'red' : ''}">${c[0] === 'T' ? '10' : c[0]}${SUITS[c[1]]}</span>`;
+    const mini = (c) => `<span class="mini s-${c[1]}">${c[0] === 'T' ? '10' : c[0]}${SUITS[c[1]]}</span>`;
     el.innerHTML = `<div class="sc-title">${t('show.title')}</div>
       <div class="sc-opts">
         <button data-show="0">${mini(cards[0])}</button>

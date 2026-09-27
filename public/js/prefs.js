@@ -1,8 +1,8 @@
 // Personal settings of this player, remembered in this browser (the settings panel in the ⋮ menu).
-// gadgets / trophies / bigCards only change what you see and hear; noTopple is also sent to the server,
+// gadgets / trophies / bigCards / fourColor only change what you see and hear; noTopple is also sent to the server,
 // which then refuses to let anyone knock your chip stack over.
-const KEYS = { gadgets: 'pc.showGadgets', trophies: 'pc.showTrophies', noTopple: 'pc.noTopple', bigCards: 'pc.bigCards' };
-const DEFAULTS = { gadgets: true, trophies: true, noTopple: false, bigCards: false };
+const KEYS = { gadgets: 'pc.showGadgets', trophies: 'pc.showTrophies', noTopple: 'pc.noTopple', bigCards: 'pc.bigCards', fourColor: 'pc.fourColor' };
+const DEFAULTS = { gadgets: true, trophies: true, noTopple: false, bigCards: false, fourColor: false };
 const listeners = [];
 
 function read(key) {

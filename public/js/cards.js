@@ -1,6 +1,6 @@
 // 3D playing cards with rounded corners, an edge and separate front/back faces.
 import * as THREE from 'three';
-import { cardFaceTexture, cardBackTexture } from './textures.js';
+import { cardFaceTexture, cardBackTexture, setFourColor } from './textures.js';
 
 export const CARD_W = 1.0;
 export const CARD_H = 1.4;
@@ -66,6 +66,20 @@ export function setCardBack(style) {
 export function setCardFaceStyle(style) {
   if (style === faceStyle) return;
   faceStyle = style;
+  refreshAllFaces();
+}
+
+// Four-colour deck on/off (a personal setting)
+let fourColorOn = false;
+export function setFourColorDeck(on) {
+  if (!!on === fourColorOn) return;
+  fourColorOn = !!on;
+  setFourColor(fourColorOn);
+  document.body.classList.toggle('four-color', fourColorOn);
+  refreshAllFaces();
+}
+
+function refreshAllFaces() {
   for (const ref of liveCards) {
     const g = ref.deref();
     if (!g) liveCards.delete(ref);
