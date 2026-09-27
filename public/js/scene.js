@@ -7,6 +7,7 @@ import {
 } from './textures.js';
 import { updateTweens, tween, ease } from './tween.js';
 import { MAX_SEATS } from '/shared/config.js';
+import { isPhone } from './device.js';
 import { CARD_W, CARD_H } from './cards.js';
 import { CHIP_R } from './chips.js';
 
@@ -500,7 +501,8 @@ export class Stage {
     this.size = { w, h };
     // false: only the drawing buffer is resized; the canvas always fills the container via CSS
     this.renderer.setSize(w, h, false);
-    const wantPortrait = w / h < 0.85;
+    // phones always use the portrait layout (they are played upright only – see device.js)
+    const wantPortrait = w / h < 0.85 || isPhone();
     if (wantPortrait !== portrait) {
       portrait = wantPortrait;
       this.table.rotation.y = tableYaw();

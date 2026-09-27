@@ -8,6 +8,7 @@ import { PRESETS, defaultConfig, estimateMinutes, levelAt } from '/shared/config
 import { GADGETS, GADGET_CHOICES, NO_GADGET, isGadget } from '/shared/gadgets.js';
 import { sfx } from './sound.js';
 import { prefs, setPref } from './prefs.js';
+import { isPhone, deviceLandscape, lockPortrait } from './device.js';
 import { t, fmt, fmtMin, clock, describeHand, describeHole, langPicker, applyStatic, onLangChange, getLang } from './i18n.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -166,6 +167,15 @@ export class Hud {
         <button class="icon" id="btn-sfx" data-i18n-title="top.sfx">${ICON.bell}</button>
         <button class="icon" id="btn-menu" data-i18n-title="top.menu">${ICON.menu}</button>
         <div class="menu hidden" id="menu">
+          <div class="m-only m-lang">${langPicker()}</div>
+          <button class="m-only m-item" data-proxy="btn-mic"></button>
+          <button class="m-only m-item" data-proxy="btn-cam"></button>
+          <button class="m-only m-item" data-proxy="btn-deaf"></button>
+          <hr class="m-only">
+          <button class="m-only m-item" data-proxy="btn-invite"></button>
+          <button class="m-only m-item" data-proxy="btn-pause"></button>
+          <button class="m-only m-item" data-proxy="btn-sfx"></button>
+          <hr class="m-only">
           <button id="btn-settings" data-i18n="top.settings"></button>
           <button id="btn-abort" data-i18n="top.abort"></button>
           <button id="btn-full" data-i18n="top.fullscreen"></button>
@@ -192,16 +202,44 @@ export class Hud {
     };
     $('#btn-menu').onclick = (e) => {
       e.stopPropagation();
+      this.#syncMenuMirror();
       $('#menu').classList.toggle('hidden');
     };
+    // Phones: the top bar only shows the menu button; language, voice (mic, camera, speaker),
+    // invite, pause and sound effects are mirrored into the menu (icon + label) and simply click
+    // the original buttons
+    $('#menu').querySelectorAll('[data-proxy]').forEach((b) => {
+      b.onclick = () => {
+        $(`#${b.dataset.proxy}`).click();
+        this.#syncMenuMirror();
+      };
+    });
     document.addEventListener('click', () => $('#menu').classList.add('hidden'));
     $('#btn-abort').onclick = () => {
       if (confirm(t('top.abortConfirm'))) this.send('abort');
     };
     $('#btn-full').onclick = () => {
       if (document.fullscreenElement) document.exitFullscreen();
-      else document.documentElement.requestFullscreen?.();
+      else document.documentElement.requestFullscreen?.()?.then(lockPortrait, () => {});
     };
+
+    // Phones: portrait only. Where the browser cannot lock the orientation, a notice asks to
+    // turn the phone upright again.
+    const rotate = document.createElement('div');
+    rotate.id = 'rotate';
+    rotate.className = 'hidden';
+    rotate.innerHTML = `<div class="rotate-card"><div class="rotate-icon" aria-hidden="true">📱</div>
+      <h2 data-i18n="rotate.title"></h2><p data-i18n="rotate.text"></p></div>`;
+    document.body.appendChild(rotate);
+    const checkOrientation = () => {
+      const blocked = isPhone() && deviceLandscape();
+      rotate.classList.toggle('hidden', !blocked);
+      document.body.classList.toggle('rotate-phone', blocked);
+    };
+    screen.orientation?.addEventListener?.('change', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    window.addEventListener('resize', checkOrientation);
+    checkOrientation();
 
     // Personal settings (⋮ → Settings), stored in this browser
     const settings = document.createElement('div');
@@ -730,6 +768,25 @@ export class Hud {
     this.#renderJoin(s);
   }
 
+  #syncMenuMirror() {
+    const v = this.voice;
+    const onOff = (on) => t(on ? 'top.on' : 'top.off');
+    const labels = {
+      'btn-mic': () => $('#btn-mic span')?.textContent || '',
+      'btn-cam': () => `${t('voice.camera')}: ${onOff(!!v?.videoOn)}`,
+      'btn-deaf': () => `${t('voice.speaker')}: ${onOff(!v?.deafened)}`,
+      'btn-sfx': () => `${t('top.sfx')}: ${onOff(sfx.enabled)}`,
+    };
+    $('#menu').querySelectorAll('[data-proxy]').forEach((b) => {
+      const src = $(`#${b.dataset.proxy}`);
+      const noVoice = !v && ['btn-cam', 'btn-deaf'].includes(b.dataset.proxy);
+      b.classList.toggle('hidden', src.classList.contains('hidden') || noVoice);
+      b.classList.toggle('off', src.classList.contains('off'));
+      const label = labels[b.dataset.proxy]?.() || src.title;
+      b.innerHTML = `${src.querySelector('svg')?.outerHTML || ''}<span>${esc(label)}</span>`;
+    });
+  }
+
   #renderTop(s) {
     const info = $('#topbar .levelinfo');
     $('#btn-pause').classList.toggle('hidden', s.phase !== 'running' || s.mySeat == null);
@@ -771,7 +828,9 @@ export class Hud {
       el.classList.toggle('offline', !seat.connected);
       el.classList.toggle('turn', h?.toAct === p.seat && h.phase === 'betting');
       el.classList.toggle('winner', !!h?.results?.winnings[p.seat]);
-      $('.ini', el).textContent = initials(seat.name);
+      // bots are marked by a robot instead of their initials (the playing style is not shown)
+      $('.ini', el).textContent = seat.bot ? '🤖' : initials(seat.name);
+      el.classList.toggle('bot', !!seat.bot);
       $('.nm', el).textContent = seat.name;
       const stack = lobby ? s.config.startingStack : seat.stack;
       $('.stack', el).innerHTML = seat.eliminated
@@ -785,7 +844,6 @@ export class Hud {
         if (h.sbSeat === p.seat) tags.push('<b>SB</b>');
         if (h.bbSeat === p.seat) tags.push('<b>BB</b>');
       }
-      if (seat.bot) tags.push(`<b class="t-bot" title="${esc(t(`profile.${seat.bot}.desc`))}">🤖 ${esc(t(`profile.${seat.bot}.name`))}</b>`);
       if (seat.away) tags.push(`<b class="t-away">${t('plate.away')}</b>`);
       if (!seat.connected) tags.push(`<b class="t-away">${t('plate.offline')}</b>`);
       $('.tag', el).innerHTML = tags.join('');
@@ -793,13 +851,17 @@ export class Hud {
       const act = $('.act', el);
       const winAmt = h?.results?.winnings[p.seat];
       let actText = '';
+      let actHtml = '';
       if (winAmt) {
+        // amount and hand as separate parts: side by side on desktop, stacked on phones
         const hand = h.results.hands?.[p.seat];
-        actText = `+${fmt(winAmt)}${hand ? ` · ${describeHand(hand)}` : ''}`;
+        actText = `+${fmt(winAmt)}`;
+        actHtml = `<span class="amt">${esc(actText)}</span>${hand ? `<span class="hn"><span class="sep"> · </span>${esc(describeHand(hand))}</span>` : ''}`;
       } else if (h?.results?.hands?.[p.seat]) actText = describeHand(h.results.hands[p.seat]);
       else if (la && !hp.folded) actText = actionLabel(la);
       else if (hp?.folded) actText = t('plate.folded');
-      act.textContent = actText;
+      if (actHtml) act.innerHTML = actHtml;
+      else act.textContent = actText;
       act.className = `act ${winAmt ? 'win' : la ? `a-${la.type}` : ''} ${actText ? 'show' : ''}`;
       // Mic status
       const v = s.voice.find((x) => x.seat === p.seat);
@@ -1232,6 +1294,7 @@ export class Hud {
     cam.innerHTML = v.videoOn ? ICON.cam : ICON.camOff;
     cam.classList.toggle('off', !v.videoOn);
     cam.classList.toggle('on', v.videoOn);
+    this.#syncMenuMirror();
     this.#syncVideos();
     const s = this.state;
     if (!s) return;

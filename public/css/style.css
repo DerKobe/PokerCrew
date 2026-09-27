@@ -87,7 +87,7 @@ kbd {
   padding: 12px 16px;
   padding-top: max(12px, env(safe-area-inset-top));
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent);
-  z-index: 28; /* above the lobby and results overlays, so its tools (language, invite) stay usable */
+  z-index: 130; /* above the lobby/results overlays (tools stay usable) and the toasts (open menu) */
   pointer-events: none;
 }
 #topbar > * { pointer-events: auto; }
@@ -124,6 +124,13 @@ kbd {
 }
 .menu button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 9px 12px; border-radius: 8px; }
 .menu button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+/* phone-only menu entries (mirrors of the top bar tools) */
+.menu .m-only { display: none; }
+.menu .m-item { align-items: center; gap: 10px; }
+.menu .m-item svg { width: 18px; height: 18px; fill: currentColor; flex: none; }
+.menu .m-lang { padding: 6px 8px 8px; }
+.menu .m-item.off { color: #ff9aa6; }
+.menu hr { border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 4px 6px; }
 
 /* Personal settings panel (⋮ → Settings) */
 #settings {
@@ -526,6 +533,18 @@ body.starting #lobby { display: none !important; }
 .starting-text { font: italic 700 22px var(--serif); color: var(--gold); }
 @media (prefers-reduced-motion: reduce) { .starting-card .suits span { animation: none; opacity: 1; } }
 
+/* ------------------------------------------------ Phones: portrait only */
+#rotate {
+  position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(ellipse at center, #1a1d22, #07090b);
+}
+.rotate-card { text-align: center; max-width: 360px; }
+.rotate-card h2 { margin: 12px 0 6px; font: italic 700 24px var(--serif); color: var(--gold); }
+.rotate-card p { margin: 0; color: var(--muted); font-size: 14px; }
+.rotate-icon { font-size: 54px; display: inline-block; animation: turn-upright 2.4s ease-in-out infinite; }
+@keyframes turn-upright { 0%, 25% { transform: rotate(-90deg); } 55%, 100% { transform: rotate(0deg); } }
+@media (prefers-reduced-motion: reduce) { .rotate-icon { animation: none; } }
+
 /* ------------------------------------------------ Lobby */
 #lobby {
   position: fixed; inset: 0; z-index: 25;
@@ -728,19 +747,33 @@ body[data-phase='lobby'] #strength { display: none !important; }
   body { font-size: 13px; }
   .brand { display: none; }
   #topbar { padding: 8px; gap: 8px; }
+  /* only the menu button stays in the top bar; the rest lives in the menu */
+  .tools > .lang-pick, #btn-invite, #btn-pause, #btn-sfx { display: none; }
+  .menu { min-width: 230px; top: 44px; }
+  .menu button { padding: 11px 12px; font-size: 14px; }
+  .menu .m-only { display: block; }
+  .menu .m-item { display: flex; }
+  .tools { padding-left: 48px; } /* room for the chat button */
   .levelinfo { padding: 5px 12px; gap: 8px; font-size: 12px; }
   .levelinfo .hand-no { display: none; }
-  #voice { top: auto; bottom: 16px; left: 16px; right: auto; width: auto; min-width: 0; padding: 6px; }
-  #voice .vlist, #voice .vtitle { display: none; }
-  #log { left: auto; right: 16px; bottom: auto; top: 58px; width: auto; }
+  /* voice controls live in the ⋮ menu on phones (the panel was covered by the action buttons) */
+  #voice { display: none; }
+  /* the chat button sits in the top bar row, left of the menu button */
+  #log { left: auto; right: 52px; bottom: auto; top: max(8px, env(safe-area-inset-top)); width: auto; }
   #log .log-toggle span { display: none; }
   #log.open { width: min(320px, calc(100vw - 32px)); }
   #actions { left: 8px; right: 8px; bottom: 8px; width: auto; transform: none; animation-name: pop; }
   #actions.waiting { left: auto; right: 16px; bottom: 16px; }
   #showcards { bottom: max(128px, 36vh); }
-  #voice .mic-btn span { display: none; }
   #strength { font-size: 13px; padding: 4px 12px; }
   #strength.compact { font-size: 11.5px; padding: 2px 9px 3px; }
+  /* long result tags (e.g. "+388 · Two Pair, Jacks and Fours") would run into the neighbour:
+     at most plate width, wrapped, and the winner's amount on its own line */
+  .plate .act { top: calc(100% + 4px); bottom: auto; width: max-content; max-width: 150px; white-space: normal; text-align: center; line-height: 1.25; }
+  .plate .act.win { border-radius: 12px; padding: 3px 10px 4px; }
+  .plate .act.win .amt, .plate .act.win .hn { display: block; }
+  .plate .act.win .sep { display: none; }
+  .plate .act.win .hn { font-size: 11px; font-weight: 700; }
   .odds { padding: 4px 10px 5px; }
   .odds b { font-size: 22px; }
   .odds small { font-size: 11px; }
@@ -759,4 +792,4 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #away .primary { padding: 9px 12px; white-space: nowrap; }
 }
 
-.plate .tag .t-bot { background: rgba(111, 168, 255, 0.18); color: #b9d3ff; }
+.plate.bot .ini { font-size: 1.45em; line-height: 1; }
