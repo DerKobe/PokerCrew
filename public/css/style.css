@@ -503,10 +503,10 @@ body.drama #plates, body.drama #voice, body.drama #log, body.drama #topbar { opa
 #showcards .mini.s-h, #showcards .mini.s-d { color: #c0262d; }
 /* four-colour deck (personal setting): same colours as on the cards */
 body.four-color #showcards .mini { -webkit-text-stroke: 0.6px rgba(27, 28, 34, 0.85); paint-order: stroke fill; }
-body.four-color #showcards .mini.s-s { color: #0072B2; }
-body.four-color #showcards .mini.s-h { color: #CC79A7; }
-body.four-color #showcards .mini.s-d { color: #E69F00; }
-body.four-color #showcards .mini.s-c { color: #009E73; }
+body.four-color #showcards .mini.s-s { color: #000000; }
+body.four-color #showcards .mini.s-h { color: #B36200; }
+body.four-color #showcards .mini.s-d { color: #F0E442; }
+body.four-color #showcards .mini.s-c { color: #56B4E9; }
 #showcards .bar {
   position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
   background: var(--gold); transform-origin: left; transition: transform 0.25s linear;
