@@ -234,7 +234,7 @@ const DICT = {
       hands: (p) => `Hand ${p.list}`,
     },
     back: { red: 'Klassisch Rot', blue: 'Königsblau', green: 'Smaragd', black: 'Schwarz-Gold', purple: 'Pflaume', ivory: 'Elfenbein' },
-    look: { green: 'Grün', red: 'Rot', blue: 'Blau', wood: 'Holz', marbleDark: 'Dunkler Marmor', marbleLight: 'Heller Marmor' },
+    look: { green: 'Grün', red: 'Rot', blue: 'Blau', purple: 'Lila', wood: 'Holz', marbleDark: 'Dunkler Marmor', marbleLight: 'Heller Marmor' },
     gadget: { none: 'Kein Gadget', cigar: 'Zigarre', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
     plate: {
       sit: (p) => `Platz ${p.n} · Hinsetzen`,
@@ -477,7 +477,7 @@ const DICT = {
       hands: (p) => `hand ${p.list}`,
     },
     back: { red: 'Classic red', blue: 'Royal blue', green: 'Emerald', black: 'Black & gold', purple: 'Plum', ivory: 'Ivory' },
-    look: { green: 'Green', red: 'Red', blue: 'Blue', wood: 'Wood', marbleDark: 'Dark marble', marbleLight: 'Light marble' },
+    look: { green: 'Green', red: 'Red', blue: 'Blue', purple: 'Purple', wood: 'Wood', marbleDark: 'Dark marble', marbleLight: 'Light marble' },
     gadget: { none: 'No gadget', cigar: 'Cigar', vape: 'Vape', cocktail: 'Cocktail', whiskey: 'Whiskey' },
     plate: {
       sit: (p) => `Seat ${p.n} · Sit down`,

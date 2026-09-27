@@ -205,7 +205,7 @@ function stadiumPath(ctx, cx, cy, a, r) {
 // The print is fixed to the table and rotates with it in portrait. `title` is the tournament
 // name printed between the board and your own seat. `grid` (portrait only) describes the 3 + 2
 // board of large upright cards; then slots, name and lettering are printed upright for the viewer.
-export const FELT_COLORS = { green: '#0f6b43', red: '#6c1219', blue: '#123f6e' };
+export const FELT_COLORS = { green: '#0f6b43', red: '#6c1219', blue: '#123f6e', purple: '#4a1f6b' };
 export function feltTexture(title = 'PokerCrew', felt = 'green', grid = null) {
   const color = FELT_COLORS[felt] || FELT_COLORS.green;
   const W = 2048;

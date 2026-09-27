@@ -6,7 +6,7 @@ export const DEFAULT_SEATS = 5;
 export const DEFAULT_TITLE = 'PokerCrew';
 export const TITLE_MAX = 28;
 // Table look: felt colour and material of the ring around the felt
-export const FELTS = ['green', 'red', 'blue'];
+export const FELTS = ['green', 'red', 'blue', 'purple'];
 export const RIMS = ['wood', 'marbleDark', 'marbleLight'];
 export const CARD_BACKS = ['red', 'blue', 'green', 'black', 'purple', 'ivory'];
 
