@@ -592,11 +592,12 @@ export const CARD_W = 400;
 export const CARD_H = 560;
 const RED = '#d71f38';
 const BLACK = '#1b1c22';
-// Four-colour deck (personal setting for telling the suits apart): the colour-blind-safe
-// Okabe–Ito / Wong palette – blue, reddish purple, orange and bluish green. Blue (the darkest)
-// stands in for black; the former red suits stay warm, the black ones cool. Some of these
-// colours are light on a white card, so symbols and ranks get a thin dark outline.
-export const FOUR_COLORS = { s: '#0072B2', h: '#CC79A7', d: '#E69F00', c: '#009E73' };
+// Four-colour deck (personal setting for telling the suits apart): black plus three colours of
+// the colour-blind-safe Okabe–Ito palette – orange (darkened so it stays clearly apart from the
+// yellow, also with red-green colour blindness), sky blue and yellow. The former red suits
+// stay warm (orange, yellow), the black ones black and cool (sky blue). Orange, sky blue and
+// yellow are light on a white card, so symbols and ranks get a thin dark outline.
+export const FOUR_COLORS = { s: '#000000', h: '#B36200', d: '#F0E442', c: '#56B4E9' };
 const OUTLINE = 'rgba(27, 28, 34, 0.85)';
 let fourColor = false;
 // outline width for a glyph of this size (only in the four-colour deck)
