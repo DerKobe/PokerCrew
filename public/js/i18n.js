@@ -231,7 +231,7 @@ const DICT = {
       trapper: { name: 'Fallensteller', desc: 'Spielt starke Hände langsam und liebt den Check-Raise.' },
     },
     trophy: {
-      sevenDeuce: { name: 'Sieben-Zwei', desc: 'Einen Showdown mit 7-2 gewonnen – der schlechtesten Starthand im Poker.' },
+      sevenDeuce: { name: 'Sieben-Zwei', desc: 'Mit 7-2 gewonnen, der schlechtesten Starthand im Poker – im Showdown oder nach dem Flop mit gezeigten Karten.' },
       tequila: { name: 'Tequila überlebt', desc: 'Mit dem ganzen Stack all-in gegangen und überlebt.' },
       crackedAces: { name: 'Geknackte Asse', desc: 'Mit zwei Assen einen Showdown verloren.' },
       riverRat: { name: 'River Rat', desc: 'Am Turn hinten gelegen – der River hat die Hand gedreht.' },
@@ -475,7 +475,7 @@ const DICT = {
       trapper: { name: 'Trapper', desc: 'Slow-plays big hands and loves the check-raise.' },
     },
     trophy: {
-      sevenDeuce: { name: 'Seven-Deuce', desc: 'Won a showdown with 7-2 – the worst starting hand in poker.' },
+      sevenDeuce: { name: 'Seven-Deuce', desc: 'Won with 7-2, the worst starting hand in poker – at a showdown, or after the flop by showing both cards.' },
       tequila: { name: 'Tequila Survivor', desc: 'Went all-in with the whole stack and survived.' },
       crackedAces: { name: 'Cracked Aces', desc: 'Lost a showdown holding pocket aces.' },
       riverRat: { name: 'River Rat', desc: 'Behind on the turn – the river turned the hand around.' },

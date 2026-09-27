@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateBest, evaluate5 } from '../shared/cards.js';
 import { HandEngine } from '../server/engine.js';
-import { trophiesFor } from '../server/trophies.js';
+import { trophiesFor, shownSevenDeuce } from '../server/trophies.js';
 import { fastScore } from '../shared/odds.js';
 import { createDeck, rankValue, showdownRole } from '../shared/cards.js';
 
@@ -359,4 +359,38 @@ test('Showdown role (dramatic river sound): win, lose, split, watch', () => {
   assert.equal(showdownRole(three, board, 2), 'lose', 'loses against the two who split');
   // hidden cards (not revealed): cannot judge
   assert.equal(showdownRole({ 0: { cards: ['Ah', 'Kh'], folded: false }, 1: { cards: null, folded: false } }, board, 0), 'watch');
+});
+
+test('Trophies: 7-2 shown after an uncontested win only counts once the flop was seen', () => {
+  // button = seat 0, dealing starts with seat 1: seat 1 gets 7-2
+  const deal = () => new HandEngine({
+    players: [0, 1].map((seat) => ({ seat, stack: 1000 })), buttonSeat: 0, sb: 5, bb: 10,
+    deck: stackedDeck(['7h', 'As', '2c', 'Kd', '3c', 'Qd', '9s', '4h']),
+  });
+  // everybody folds preflop: no flop, no trophy even when shown
+  const pre = deal();
+  pre.act(0, 'raise', 40);
+  pre.act(1, 'raise', 120);
+  pre.act(0, 'fold');
+  pre.showCards(1, [0, 1]);
+  assert.equal(shownSevenDeuce(pre, 1), false, 'folded before the flop');
+  // the opponent sees the flop and folds to a bet
+  const post = deal();
+  post.act(0, 'call');
+  post.act(1, 'check');
+  post.advance();
+  assert.equal(post.board.length, 3);
+  post.act(1, 'raise', 30);
+  post.act(0, 'fold');
+  assert.equal(shownSevenDeuce(post, 1), false, 'not shown yet');
+  post.showCards(1, [1]);
+  assert.equal(shownSevenDeuce(post, 1), false, 'one card only');
+  const again = deal();
+  again.act(0, 'call');
+  again.act(1, 'check');
+  again.advance();
+  again.act(1, 'raise', 30);
+  again.act(0, 'fold');
+  again.showCards(1, [0, 1]);
+  assert.equal(shownSevenDeuce(again, 1), true);
 });
