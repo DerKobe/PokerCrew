@@ -259,6 +259,13 @@ body.in-lobby .plate.can-sit .sit { display: none; }
 .vhead { display: flex; align-items: center; gap: 8px; }
 .vhead > * { flex: none; }
 .vtitle { margin-left: auto; padding-left: 4px; white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.vhead .vcollapse { width: 30px; height: 30px; padding: 0; background: none; border-color: transparent; color: var(--muted); }
+.vhead .vcollapse:hover { color: inherit; background: rgba(255, 255, 255, 0.08); }
+.vhead .vcollapse svg { width: 20px; height: 20px; }
+/* minimized: only the mic button (icon) and the expand button */
+#voice.collapsed { min-width: 0; padding: 6px; }
+#voice.collapsed .vlist, #voice.collapsed .vtitle, #voice.collapsed #btn-cam, #voice.collapsed #btn-deaf, #voice.collapsed .mic-btn span { display: none; }
+#voice.collapsed .vhead { gap: 4px; }
 .mic-btn {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 12px; border-radius: 10px; border: 0; font-weight: 700; font-size: 13px; white-space: nowrap;
