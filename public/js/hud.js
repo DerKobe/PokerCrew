@@ -798,6 +798,13 @@ export class Hud {
   // Keep the HTML elements positioned every frame
   #frame() {
     if (!this.state) return;
+    // The action panel (and its hotkeys) waits until your cards have been dealt and turned up
+    const sh = this.state.hand;
+    const dealing = !!sh && this.state.mySeat != null && !!sh.players[this.state.mySeat]?.cards && this.view.ownCardsUp !== sh.id;
+    if (dealing !== this.dealing) {
+      this.dealing = dealing;
+      document.body.classList.toggle('dealing-me', dealing);
+    }
     // the table has taken over (first hand being dealt); shown at least briefly so it does not flash
     if (this.starting && this.state.phase === 'running' && this.view.handId != null && performance.now() - this.starting.at > 700) this.#endStart();
     const v = new THREE.Vector3();
@@ -1130,7 +1137,7 @@ export class Hud {
 
   #hotkeys(e) {
     if (e.target.matches('input:not([type=range]), textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (!this.state?.hand?.legal || this.actions.className !== 'mine') return;
+    if (!this.state?.hand?.legal || this.actions.className !== 'mine' || this.dealing) return;
     const k = e.key.toLowerCase();
     const click = (sel) => this.actions.querySelector(sel)?.click();
     if (k === 'f') click('[data-a=fold]');

@@ -705,6 +705,7 @@ body.disconnected #offline { transform: none; }
 
 /* ------------------------------------------------ Phases */
 body[data-phase='lobby'] #actions,
+body.dealing-me #actions,
 body[data-phase='lobby'] #strength { display: none !important; }
 
 /* ------------------------------------------------ Mobile */
