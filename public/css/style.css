@@ -184,6 +184,10 @@ input.switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px
   transition: box-shadow 0.08s;
 }
 .plate .timer { position: absolute; inset: 0; transform: rotate(-90deg); z-index: 2; }
+/* all avatar contents share one grid cell – otherwise the empty .speak element adds a second
+   row and pushes the initials (or the bot's robot) into the upper half of the circle */
+.plate .avatar > * { grid-area: 1 / 1; }
+.plate .ini { line-height: 1; }
 /* Live video in the avatar: slightly larger, sticks out of the pill */
 .plate .avatar video { position: absolute; inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 50%; object-fit: cover; background: #111; }
 .plate .avatar video.mirror { transform: scaleX(-1); }
