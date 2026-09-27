@@ -40,6 +40,8 @@ const ICON = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
   bell: '<svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2Zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2Z"/></svg>',
   bellOff: '<svg viewBox="0 0 24 24"><path d="M20 18.69 7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01A6 6 0 0 0 6 11v5l-2 2v1h13.73l2 2L21 19.72l-1-1.03ZM12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2Zm6-7.32V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09a5.8 5.8 0 0 0-1.53.53L18 14.68Z"/></svg>',
+  chevronUp: '<svg viewBox="0 0 24 24"><path d="M7.4 15.4 12 10.8l4.6 4.6L18 14l-6-6-6 6Z"/></svg>',
+  chevronDown: '<svg viewBox="0 0 24 24"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6Z"/></svg>',
   menu: '<svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>',
   chat: '<svg viewBox="0 0 24 24"><path d="M4 4h16v12H5.17L4 17.17V4Zm0-2a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4Z"/></svg>',
   link: '<svg viewBox="0 0 24 24"><path d="M3.9 12a3.1 3.1 0 0 1 3.1-3.1h4V7H7a5 5 0 0 0 0 10h4v-1.9H7A3.1 3.1 0 0 1 3.9 12ZM8 13h8v-2H8v2Zm9-6h-4v1.9h4a3.1 3.1 0 0 1 0 6.2h-4V17h4a5 5 0 0 0 0-10Z"/></svg>',
@@ -241,8 +243,31 @@ export class Hud {
         <button class="icon" id="btn-cam" data-i18n-title="voice.cam"></button>
         <button class="icon" id="btn-deaf" data-i18n-title="voice.deafen"></button>
         <div class="vtitle" data-i18n="voice.title"></div>
+        <button class="icon vcollapse" id="btn-voice-collapse"></button>
       </div>
       <ul class="vlist"></ul>`;
+    // Minimizable: then only the mic button stays (e.g. when the panel covers players on a small
+    // screen); the choice is remembered in this browser
+    const voiceEl = $('#voice');
+    const renderCollapse = () => {
+      const collapsed = voiceEl.classList.contains('collapsed');
+      const b = $('#btn-voice-collapse');
+      b.innerHTML = collapsed ? ICON.chevronDown : ICON.chevronUp;
+      b.title = t(collapsed ? 'voice.expand' : 'voice.minimize');
+      b.setAttribute('aria-expanded', String(!collapsed));
+    };
+    try {
+      voiceEl.classList.toggle('collapsed', localStorage.getItem('pc.voiceCollapsed') === '1');
+    } catch {}
+    renderCollapse();
+    onLangChange(renderCollapse);
+    $('#btn-voice-collapse').onclick = () => {
+      voiceEl.classList.toggle('collapsed');
+      try {
+        localStorage.setItem('pc.voiceCollapsed', voiceEl.classList.contains('collapsed') ? '1' : '0');
+      } catch {}
+      renderCollapse();
+    };
     $('#btn-mic').onclick = () => this.voice && this.voice.hasMic && this.voice.setMuted(!this.voice.muted);
     $('#btn-deaf').onclick = () => this.voice && this.voice.setDeafened(!this.voice.deafened);
     $('#btn-cam').onclick = async () => {
@@ -798,6 +823,13 @@ export class Hud {
   // Keep the HTML elements positioned every frame
   #frame() {
     if (!this.state) return;
+    // The action panel (and its hotkeys) waits until your cards have been dealt and turned up
+    const sh = this.state.hand;
+    const dealing = !!sh && this.state.mySeat != null && !!sh.players[this.state.mySeat]?.cards && this.view.ownCardsUp !== sh.id;
+    if (dealing !== this.dealing) {
+      this.dealing = dealing;
+      document.body.classList.toggle('dealing-me', dealing);
+    }
     // the table has taken over (first hand being dealt); shown at least briefly so it does not flash
     if (this.starting && this.state.phase === 'running' && this.view.handId != null && performance.now() - this.starting.at > 700) this.#endStart();
     const v = new THREE.Vector3();
@@ -1130,7 +1162,7 @@ export class Hud {
 
   #hotkeys(e) {
     if (e.target.matches('input:not([type=range]), textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (!this.state?.hand?.legal || this.actions.className !== 'mine') return;
+    if (!this.state?.hand?.legal || this.actions.className !== 'mine' || this.dealing) return;
     const k = e.key.toLowerCase();
     const click = (sel) => this.actions.querySelector(sel)?.click();
     if (k === 'f') click('[data-a=fold]');
