@@ -798,7 +798,9 @@ export class Hud {
     $('#btn-pause').classList.toggle('hidden', s.phase !== 'running' || s.mySeat == null);
     $('#btn-pause').innerHTML = s.paused ? ICON.play : ICON.pause;
     $('#btn-pause').title = t(s.paused ? 'top.resume' : 'top.pause');
-    $('#btn-abort').disabled = s.phase === 'lobby' || s.mySeat == null;
+    // spectators too, once only bots are left in the tournament
+    const onlyBots = s.seats.some((x) => x && !x.eliminated) && s.seats.every((x) => !x || x.eliminated || x.bot);
+    $('#btn-abort').disabled = s.phase === 'lobby' || (s.mySeat == null && !onlyBots);
     if (s.phase === 'lobby') {
       info.innerHTML = `<span class="lv">${t('top.lobby')}</span><span class="muted">${t('top.players', { n: s.seats.filter(Boolean).length, max: s.seats.length })}</span>`;
       return;

@@ -387,6 +387,27 @@ test('7-2 trophy without a showdown: won after the flop and showed both cards', 
   s.close();
 });
 
+test('Abort: spectators may abort only once nothing but bots is left', () => {
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, botMin: 1000, botMax: 1000 } });
+  const human = new FakeSocket('ab-h', 'token-abort-human');
+  const spec = new FakeSocket('ab-s', 'token-abort-spec');
+  s.connect(human);
+  s.connect(spec);
+  human.send('sit', { seat: 0, name: 'Human' });
+  human.send('config', { bots: true });
+  human.send('start');
+  assert.equal(s.phase, 'running');
+  spec.send('abort');
+  assert.equal(s.phase, 'running', 'a human is still playing');
+  assert.ok(spec.received.some(([ev, d]) => ev === 'toast' && d.key === 'err.seatedOnly'));
+  // the human busts: only bots are left
+  s.seats[0].eliminated = true;
+  spec.send('abort');
+  assert.equal(s.phase, 'lobby');
+  assert.ok(s.log.some((e) => e.key === 'aborted' && e.p.name === null));
+  s.close();
+});
+
 test('Bots: fill empty seats at the start and play a tournament to the end', async () => {
   const s = new Session(fakeIo, {
     delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, botMin: 1, botMax: 2, botFast: 1, botTidy: 1 },

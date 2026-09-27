@@ -638,13 +638,21 @@ export class Session {
     this.broadcast();
   }
 
+  // Seated players may abort. Once only bots are left in the tournament, anybody may – otherwise
+  // spectators would have to watch the bots play it out.
   abort(token) {
-    const seat = this.#requireSeat(token);
     if (this.phase === 'lobby') return;
-    const name = this.seats[seat].name;
+    const seat = this.seatOfToken(token);
+    if (seat == null && !this.onlyBotsLeft()) throw new UserError('seatedOnly');
+    const name = seat != null ? this.seats[seat].name : null;
     this.#resetTournament();
     this.#addLog('aborted', { name }, 'system');
     this.broadcast();
+  }
+
+  onlyBotsLeft() {
+    const alive = this.#alive();
+    return alive.length > 0 && alive.every((i) => this.seats[i].bot);
   }
 
   newTournament(token) {
