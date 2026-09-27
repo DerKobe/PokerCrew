@@ -862,8 +862,12 @@ export class Hud {
     const showStrength = !!st && this.view.ownCardsUp === st.hand && this.state.mySeat != null;
     strength.classList.toggle('hidden', !showStrength);
     if (showStrength) {
+      // Large print cards have their big suit symbol near the bottom edge: a slim bubble that
+      // mostly hangs below the edge, so it stays clear of the symbol
+      const compact = prefs.bigCards;
+      strength.classList.toggle('compact', compact);
       const pt = this.stage.project(this.view.anchors(this.state.mySeat).cards, v);
-      strength.style.transform = `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%)`;
+      strength.style.transform = `translate(${pt.x}px, ${pt.y}px) translate(-50%, ${compact ? -20 : -50}%)`;
     }
     for (const p of this.plates) {
       if (p.el.classList.contains('hidden')) continue;
