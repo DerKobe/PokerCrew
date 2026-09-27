@@ -188,6 +188,10 @@ input.switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px
 .plate.has-video .ini { display: none; }
 .plate.has-video.zoom { z-index: 10; }
 .plate.has-video.zoom .avatar { width: 190px; height: 190px; margin: -76px 0 -76px -12px; cursor: zoom-out; }
+/* zoomed video: the action tag (Folded, Call …) moves under the name instead of over the face */
+.plate.has-video.zoom .act { left: calc(var(--zoom-video) - var(--zoom-shift) + 6px); transform: translateY(-4px); }
+.plate.has-video.zoom .act.show { transform: none; }
+.plate.has-video.zoom { --zoom-video: 190px; --zoom-shift: 12px; }
 .plate .timer circle { fill: none; stroke: var(--gold); stroke-width: 3; stroke-dasharray: 126; stroke-dashoffset: 126; stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
 .plate.hurry .timer circle { stroke: var(--red); }
 .plate .meta { line-height: 1.2; min-width: 0; }
@@ -727,6 +731,7 @@ body[data-phase='lobby'] #strength { display: none !important; }
   .plate .avatar { width: 34px; height: 34px; font-size: 12px; }
   .plate.has-video .avatar { width: 56px; height: 56px; margin: -14px 0 -14px -4px; }
   .plate.has-video.zoom .avatar { width: 130px; height: 130px; margin: -50px 0 -50px -8px; }
+  .plate.has-video.zoom { --zoom-video: 130px; --zoom-shift: 8px; }
   .plate .name { max-width: 80px; font-size: 12px; }
   .seatgrid { grid-template-columns: repeat(3, 1fr); }
   .gadget-opts { grid-template-columns: repeat(3, 1fr); }
