@@ -735,10 +735,50 @@ export function cardFaceCanvas(card) {
   return c;
 }
 
+// Large print variant (personal setting for easier reading): only the rank and the suit, as big
+// and bold as possible. Everything stays inside the middle of the card (26–74 % of the width),
+// because your own two cards overlap by about a quarter of their width when fanned.
+export function bigCardFaceCanvas(card) {
+  const [r, s] = card;
+  const W = CARD_W;
+  const H = CARD_H;
+  const c = canvas(W, H);
+  const ctx = c.getContext('2d');
+  const col = suitColor(s);
+  const label = RANK_LABEL[r] || r;
+  ctx.fillStyle = '#fdfdfb';
+  ctx.fillRect(0, 0, W, H);
+  // thin frame in the suit colour so the card reads as red or black even from afar
+  ctx.strokeStyle = col;
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = 8;
+  roundRect(ctx, 16, 16, W - 32, H - 32, 26);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  // rank: heavy, as tall as possible; "10" is squeezed to the same width as one character
+  const maxW = W * 0.48;
+  ctx.fillStyle = col;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `800 280px ${INDEX_FONT_NUMBER}`;
+  const w = ctx.measureText(label).width;
+  ctx.save();
+  ctx.translate(W / 2, 290);
+  if (w > maxW) ctx.scale(maxW / w, 1);
+  ctx.fillText(label, 0, 0);
+  ctx.restore();
+  // suit below it
+  drawSuit(ctx, s, W / 2, 415, 170, col);
+  addNoise(ctx, W, H, 3, card.charCodeAt(0) * 7 + card.charCodeAt(1));
+  return c;
+}
+
 const faceCache = new Map();
-export function cardFaceTexture(card) {
-  if (!faceCache.has(card)) faceCache.set(card, toTexture(cardFaceCanvas(card)));
-  return faceCache.get(card);
+// style: 'classic' (jumbo index cards) or 'big' (large print: rank + suit only)
+export function cardFaceTexture(card, style = 'classic') {
+  const key = `${style}:${card}`;
+  if (!faceCache.has(key)) faceCache.set(key, toTexture(style === 'big' ? bigCardFaceCanvas(card) : cardFaceCanvas(card)));
+  return faceCache.get(key);
 }
 
 // Card back designs: colours + pattern. Chosen per tournament in the lobby (config.cardBack).

@@ -216,7 +216,7 @@ export class Hud {
       </label>`;
     settings.innerHTML = `
       <div class="set-head"><h3 id="settings-title" data-i18n="settings.title"></h3><button class="set-close" data-i18n-title="settings.close">✕</button></div>
-      ${row('gadgets')}${row('trophies')}${row('noTopple')}
+      ${row('bigCards')}${row('gadgets')}${row('trophies')}${row('noTopple')}
       <p class="set-note" data-i18n="settings.note"></p>`;
     document.body.appendChild(settings);
     settings.querySelectorAll('[data-pref]').forEach((inp) => {

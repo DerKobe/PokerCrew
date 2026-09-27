@@ -11,6 +11,8 @@ let faceGeo;
 let edgeGeo;
 let backMat;
 let backStyle = 'red';
+let faceStyle = 'classic';
+const liveCards = new Set(); // WeakRefs to every card, so a face style change can update them
 let edgeMat;
 let glowGeo;
 
@@ -60,6 +62,17 @@ export function setCardBack(style) {
   if (backMat) backMat.map = cardBackTexture(style);
 }
 
+// Face design of every card: 'classic' or 'big' (large print, a personal setting)
+export function setCardFaceStyle(style) {
+  if (style === faceStyle) return;
+  faceStyle = style;
+  for (const ref of liveCards) {
+    const g = ref.deref();
+    if (!g) liveCards.delete(ref);
+    else g.userData.refreshFace();
+  }
+}
+
 /**
  * Card as a group. Local +Z = front face.
  * card.userData.setFace(code) sets/changes the face.
@@ -93,11 +106,17 @@ export function createCard(code = null) {
       if (c === this.code) return;
       this.code = c;
       if (c) {
-        frontMat.map = cardFaceTexture(c);
+        frontMat.map = cardFaceTexture(c, faceStyle);
         frontMat.emissiveMap = frontMat.map;
         frontMat.needsUpdate = true;
         front.visible = true;
       } else front.visible = false;
+    },
+    refreshFace() {
+      if (!this.code) return;
+      frontMat.map = cardFaceTexture(this.code, faceStyle);
+      frontMat.emissiveMap = frontMat.map;
+      frontMat.needsUpdate = true;
     },
     setHighlight(mode) {
       // mode: null | 'win' | 'dim' | 'rabbit'
@@ -120,6 +139,7 @@ export function createCard(code = null) {
     },
   };
   g.userData.setFace(code);
+  liveCards.add(new WeakRef(g));
   return g;
 }
 
