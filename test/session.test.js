@@ -280,7 +280,7 @@ test('Table look (name, felt, rim): editable by everyone in the lobby, sanitized
   assert.equal(s.config.cardBack, 'black', 'unknown card backs are ignored');
   assert.equal(a.lastState.config.felt, 'red');
   assert.equal(a.lastState.config.rim, 'marbleDark');
-  spec.send('table', { felt: 'purple', rim: 'gold', startingStack: 5 });
+  spec.send('table', { felt: 'pink', rim: 'gold', startingStack: 5 });
   assert.equal(s.config.felt, 'red', 'unknown values are ignored');
   assert.equal(s.config.rim, 'marbleDark');
   assert.equal(s.config.startingStack, 10000, 'the table event cannot touch the structure');
