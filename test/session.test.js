@@ -350,6 +350,43 @@ test('Topple protection: a player can protect their stack (personal setting)', (
   s.close();
 });
 
+test('7-2 trophy without a showdown: won after the flop and showed both cards', async () => {
+  const s = new Session(fakeIo, { delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 20, showStay: 1, rabbitWindow: 1 } });
+  const socks = [new FakeSocket('d0', 'token-deuce-0'), new FakeSocket('d1', 'token-deuce-1')];
+  socks.forEach((so) => s.connect(so));
+  socks[0].send('sit', { seat: 0, name: 'A' });
+  socks[1].send('sit', { seat: 1, name: 'B' });
+  socks[0].send('start');
+  const tick = () => new Promise((r) => setTimeout(r, 2));
+  const act = (type) => socks[s.hand.toAct].send('action', { type });
+  const deuces = (seat) => s.seats[seat].trophies.filter((x) => x.kind === 'sevenDeuce').length;
+  // both see the flop, then the first to act (holding 7-2) shoves and the other folds
+  const winAfterFlop = async () => {
+    act('call');
+    act('check');
+    while (s.hand.board.length < 3) await tick();
+    const winner = s.hand.toAct;
+    s.hand.player(winner).cards = ['7h', '2c'];
+    act('allin');
+    act('fold');
+    assert.ok(s.hand.results.uncontested);
+    return winner;
+  };
+  const nextHand = async () => {
+    const n = s.handCount;
+    while (s.handCount === n) await tick();
+  };
+  let w = await winAfterFlop();
+  socks[w].send('show', 0);
+  assert.equal(deuces(w), 0, 'one card is not enough');
+  await nextHand();
+  w = await winAfterFlop();
+  socks[w].send('show', 'both');
+  assert.equal(deuces(w), 1, 'showed 7-2 after the flop');
+  assert.ok(s.log.some((e) => e.key === 'trophy' && e.p.kind === 'sevenDeuce'));
+  s.close();
+});
+
 test('Bots: fill empty seats at the start and play a tournament to the end', async () => {
   const s = new Session(fakeIo, {
     delays: { street: 1, runout: 1, showdown: 1, uncontested: 1, showWindow: 1, showStay: 1, rabbitWindow: 1, revealTimeout: 1, dramatic: 1, away: 1, botMin: 1, botMax: 2, botFast: 1, botTidy: 1 },

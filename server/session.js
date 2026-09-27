@@ -4,7 +4,7 @@ import { HandEngine } from './engine.js';
 import { MAX_SEATS, defaultConfig, sanitizeConfig, levelAt } from '../shared/config.js';
 import { isGadget, NO_GADGET } from '../shared/gadgets.js';
 import { UserError } from './errors.js';
-import { trophiesFor } from './trophies.js';
+import { trophiesFor, shownSevenDeuce } from './trophies.js';
 import { pickBots, decide } from './bots.js';
 
 const DELAY = {
@@ -537,6 +537,8 @@ export class Session {
     const cards = this.hand.showCards(seat, which === 'both' ? [0, 1] : [Number(which)]);
     this.showOffer.done = true;
     this.#addLog('show', { name: this.seats[seat].name, cards }, 'system');
+    // won with 7-2 after the flop and showed it: that earns the 7-2 trophy, too
+    if (shownSevenDeuce(this.hand, seat)) this.#giveTrophy(seat, 'sevenDeuce', this.hand.handId);
     // give the table a moment to look at them
     if (this.stepDeadline - Date.now() < this.delay.showStay) this.#step(this.delay.showStay, () => this.#afterHand());
     this.broadcast();
@@ -558,11 +560,13 @@ export class Session {
   }
 
   #awardTrophies(h) {
-    for (const { seat, kind } of trophiesFor(h)) {
-      const s = this.seats[seat];
-      s.trophies.push({ kind, hand: h.handId });
-      this.#addLog('trophy', { name: s.name, kind }, 'win');
-    }
+    for (const { seat, kind } of trophiesFor(h)) this.#giveTrophy(seat, kind, h.handId);
+  }
+
+  #giveTrophy(seat, kind, hand) {
+    const s = this.seats[seat];
+    s.trophies.push({ kind, hand });
+    this.#addLog('trophy', { name: s.name, kind }, 'win');
   }
 
   rabbitCam(token) {
