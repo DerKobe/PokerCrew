@@ -8,7 +8,7 @@ import { ChipFidget } from './fidget.js';
 import { Gadgets } from './gadgets.js';
 import { Trophies } from './trophies.js';
 import { t } from './i18n.js';
-import { setCardBack, setCardFaceStyle } from './cards.js';
+import { setCardBack, setCardFaceStyle, setFourColorDeck } from './cards.js';
 import { prefs, onPrefChange } from './prefs.js';
 
 // Entering needs a click so the browser allows audio playback and microphone access.
@@ -83,8 +83,10 @@ function syncNoTopple() {
 gadgets.setEnabled(prefs.gadgets);
 trophies.setVisible(prefs.trophies);
 setCardFaceStyle(prefs.bigCards ? 'big' : 'classic');
+setFourColorDeck(prefs.fourColor);
 onPrefChange((key, on) => {
   if (key === 'bigCards') setCardFaceStyle(on ? 'big' : 'classic');
+  else if (key === 'fourColor') setFourColorDeck(on);
   else if (key === 'gadgets') gadgets.setEnabled(on);
   else if (key === 'trophies') trophies.setVisible(on);
   else if (key === 'noTopple') syncNoTopple();

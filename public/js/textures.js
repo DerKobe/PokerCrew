@@ -108,7 +108,8 @@ export function suitPath(ctx, suit, x, y, s) {
   ctx.restore();
 }
 
-export function drawSuit(ctx, suit, x, y, s, color, flip = false) {
+// outline: width of a dark outline around the symbol (0 = none)
+export function drawSuit(ctx, suit, x, y, s, color, flip = false, outline = 0) {
   ctx.save();
   if (flip) {
     ctx.translate(x, y);
@@ -117,6 +118,13 @@ export function drawSuit(ctx, suit, x, y, s, color, flip = false) {
     y = 0;
   }
   suitPath(ctx, suit, x, y, s);
+  if (outline) {
+    // stroked first and twice as wide, so only the outer half shows around the fill
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = outline * 2;
+    ctx.strokeStyle = OUTLINE;
+    ctx.stroke();
+  }
   ctx.fillStyle = color;
   ctx.fill('nonzero');
   ctx.restore();
@@ -584,7 +592,31 @@ export const CARD_W = 400;
 export const CARD_H = 560;
 const RED = '#d71f38';
 const BLACK = '#1b1c22';
-export const suitColor = (s) => (s === 'h' || s === 'd' ? RED : BLACK);
+// Four-colour deck (personal setting for telling the suits apart): the colour-blind-safe
+// Okabe–Ito / Wong palette – blue, reddish purple, orange and bluish green. Blue (the darkest)
+// stands in for black; the former red suits stay warm, the black ones cool. Some of these
+// colours are light on a white card, so symbols and ranks get a thin dark outline.
+export const FOUR_COLORS = { s: '#0072B2', h: '#CC79A7', d: '#E69F00', c: '#009E73' };
+const OUTLINE = 'rgba(27, 28, 34, 0.85)';
+let fourColor = false;
+// outline width for a glyph of this size (only in the four-colour deck)
+const outlineFor = (size) => (fourColor ? Math.max(1.5, size * 0.035) : 0);
+function fillTextOutlined(ctx, text, x, y, size) {
+  const w = outlineFor(size);
+  if (w) {
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = w * 2;
+    ctx.strokeStyle = OUTLINE;
+    ctx.strokeText(text, x, y);
+    ctx.restore();
+  }
+  ctx.fillText(text, x, y);
+}
+export function setFourColor(on) {
+  fourColor = !!on;
+}
+export const suitColor = (s) => (fourColor ? FOUR_COLORS[s] : s === 'h' || s === 'd' ? RED : BLACK);
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -654,9 +686,9 @@ export function cardFaceCanvas(card) {
     ctx.save();
     ctx.translate(cx, 100);
     if (label.length > 1) ctx.scale(0.6, 1);
-    ctx.fillText(label, 0, 0);
+    fillTextOutlined(ctx, label, 0, 0, 104);
     ctx.restore();
-    drawSuit(ctx, s, cx, 152, 66, col);
+    drawSuit(ctx, s, cx, 152, 66, col, false, outlineFor(66));
   };
   for (const flip of [false, true]) {
     ctx.save();
@@ -704,7 +736,7 @@ export function cardFaceCanvas(card) {
       ctx.save();
       ctx.shadowColor = '#ffffff';
       ctx.shadowBlur = 6;
-      drawSuit(ctx, s, x, y, 34, col, flip);
+      drawSuit(ctx, s, x, y, 34, col, flip, outlineFor(34));
       ctx.restore();
     };
     smallPip(fx + 22, fy + 26, false);
@@ -721,10 +753,10 @@ export function cardFaceCanvas(card) {
   if (PIPS[label]) {
     const box = { x: fx + fw * 0.2, y: fy + fh * 0.13, w: fw * 0.6, h: fh * 0.74 };
     for (const [px, py] of PIPS[label]) {
-      drawSuit(ctx, s, box.x + px * box.w, box.y + py * box.h, 50, col, py > 0.5);
+      drawSuit(ctx, s, box.x + px * box.w, box.y + py * box.h, 50, col, py > 0.5, outlineFor(50));
     }
   } else if (r === 'A') {
-    drawSuit(ctx, s, W / 2, H / 2, 56, col);
+    drawSuit(ctx, s, W / 2, H / 2, 56, col, false, outlineFor(56));
   }
 
   ctx.strokeStyle = FRAME_COLOR;
@@ -765,10 +797,10 @@ export function bigCardFaceCanvas(card) {
   ctx.save();
   ctx.translate(W / 2, 290);
   if (w > maxW) ctx.scale(maxW / w, 1);
-  ctx.fillText(label, 0, 0);
+  fillTextOutlined(ctx, label, 0, 0, 280);
   ctx.restore();
   // suit below it
-  drawSuit(ctx, s, W / 2, 415, 170, col);
+  drawSuit(ctx, s, W / 2, 415, 170, col, false, outlineFor(170));
   addNoise(ctx, W, H, 3, card.charCodeAt(0) * 7 + card.charCodeAt(1));
   return c;
 }
@@ -776,7 +808,7 @@ export function bigCardFaceCanvas(card) {
 const faceCache = new Map();
 // style: 'classic' (jumbo index cards) or 'big' (large print: rank + suit only)
 export function cardFaceTexture(card, style = 'classic') {
-  const key = `${style}:${card}`;
+  const key = `${style}:${fourColor ? 4 : 2}:${card}`;
   if (!faceCache.has(key)) faceCache.set(key, toTexture(style === 'big' ? bigCardFaceCanvas(card) : cardFaceCanvas(card)));
   return faceCache.get(key);
 }
