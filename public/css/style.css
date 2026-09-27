@@ -327,6 +327,8 @@ body.in-lobby .plate.can-sit .sit { display: none; }
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); animation: fade-in 0.3s ease-out;
 }
 @keyframes fade-in { from { opacity: 0; } }
+/* with large print cards: plain and slim, so it fits under the big suit symbol */
+#strength.compact { font: 700 12.5px/1.25 Inter, sans-serif; letter-spacing: 0.01em; padding: 2px 11px 3px; }
 /* centred at the bottom of the screen, right under your own name plate */
 #actions {
   position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 16;
@@ -738,6 +740,7 @@ body[data-phase='lobby'] #strength { display: none !important; }
   #showcards { bottom: max(128px, 36vh); }
   #voice .mic-btn span { display: none; }
   #strength { font-size: 13px; padding: 4px 12px; }
+  #strength.compact { font-size: 11.5px; padding: 2px 9px 3px; }
   .odds { padding: 4px 10px 5px; }
   .odds b { font-size: 22px; }
   .odds small { font-size: 11px; }
