@@ -754,7 +754,9 @@ body[data-phase='lobby'] #strength { display: none !important; }
   .menu button { padding: 11px 12px; font-size: 14px; }
   .menu .m-only { display: block; }
   .menu .m-item { display: flex; }
-  .tools { padding-left: 48px; } /* room for the chat button */
+  /* room for the chat button (fixed, left of the menu button) – as a margin, not as padding of
+     .tools, which would catch the taps meant for the chat button */
+  .levelinfo { margin-right: 50px; }
   .levelinfo { padding: 5px 12px; gap: 8px; font-size: 12px; }
   .levelinfo .hand-no { display: none; }
   /* voice controls live in the ⋮ menu on phones (the panel was covered by the action buttons) */
