@@ -510,11 +510,11 @@ export class Stage {
       this.onLayout?.();
     }
     this.#fit(w, h, 0);
-    // Landscape: the action panel sits at the bottom centre, right under your own name plate.
-    // If the plate would reach into that reserved strip, the table is drawn in a shorter area
-    // at the top of the screen (only as much shorter as needed).
+    // The action panel sits at the bottom of the screen, right under your own name plate. If the
+    // plate (and your cards above it) would reach into that reserved strip, the table is drawn in
+    // a shorter area at the top of the screen (only as much shorter as needed).
     const limit = h - this.reserveBottom;
-    if (!portrait && this.reserveBottom > 0) {
+    if (this.reserveBottom > 0) {
       let inset = 0;
       for (let i = 0; i < 4; i++) {
         this.#restPose();
@@ -526,7 +526,7 @@ export class Stage {
     }
   }
 
-  // Keep a strip of `px` at the bottom of the screen free for the action panel (landscape)
+  // Keep a strip of `px` at the bottom of the screen free for the action panel
   setReserveBottom(px) {
     if (px === this.reserveBottom) return;
     this.reserveBottom = px;

@@ -14,6 +14,7 @@ import { t, fmt, fmtMin, clock, describeHand, describeHole, langPicker, applySta
 const $ = (sel, root = document) => root.querySelector(sel);
 const SUITS = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const ACTIONS_RESERVE = 206; // height of the action panel incl. its bottom margin (desktop)
+const ACTIONS_RESERVE_PHONE = 184; // full-width panel on phones (8px margin + panel)
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const mmss = (ms) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -97,7 +98,7 @@ export class Hud {
     // Desktop: keep the bottom strip free for the action panel (16px margin + panel + small gap);
     // on phones the panel overlays the table, which is laid out for that already
     const desktop = matchMedia('(min-width: 801px)');
-    const reserve = () => stage.setReserveBottom(desktop.matches ? ACTIONS_RESERVE : 0);
+    const reserve = () => stage.setReserveBottom(desktop.matches ? ACTIONS_RESERVE : isPhone() ? ACTIONS_RESERVE_PHONE : 0);
     desktop.addEventListener('change', reserve);
     reserve();
     stage.onFrame.push(() => this.#frame());
@@ -218,9 +219,14 @@ export class Hud {
     $('#btn-abort').onclick = () => {
       if (confirm(t('top.abortConfirm'))) this.send('abort');
     };
+    // Fullscreen: not available for web pages on iPhones (Safari only allows it for videos), so
+    // the menu entry is hidden where the browser does not support it
+    const root = document.documentElement;
+    const canFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) && !!(root.requestFullscreen || root.webkitRequestFullscreen);
+    $('#btn-full').classList.toggle('hidden', !canFullscreen);
     $('#btn-full').onclick = () => {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else document.documentElement.requestFullscreen?.()?.then(lockPortrait, () => {});
+      if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else Promise.resolve((root.requestFullscreen || root.webkitRequestFullscreen).call(root)).then(lockPortrait, () => {});
     };
 
     // Phones: portrait only. Where the browser cannot lock the orientation, a notice asks to
